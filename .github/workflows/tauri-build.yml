@@ -74,3 +74,23 @@ jobs:
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/*.exe
           if-no-files-found: warn
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == true
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.17' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('AnhePlayer {0}', github.ref_name) || 'AnhePlayer v1.0.17' }}
+          body: |
+            ### AnhePlayer Tauri v2 Release 🎉
+            - 全新轻量化 Tauri v2 核心驱动，超低内存占用与秒级启动
+            - Web Worker 隔离沙箱与网络跨域穿透，全面兼容洛雪音源插件
+            - 保持原有 UI 与歌单数据完全兼容
+          draft: false
+          prerelease: false
+          files: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+
