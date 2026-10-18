@@ -2,8 +2,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
     base: './',
+    // 与 Electron 构建（config/webpack.plugins.ts 的 DefinePlugin）保持一致的编译期常量。
+    // 缺少该定义时，源码中的 __DEV__ 在生产 WebView 中会抛出 ReferenceError 导致白屏。
+    define: {
+        __DEV__: JSON.stringify(mode !== 'production'),
+    },
     plugins: [react()],
     resolve: {
         alias: {
@@ -28,4 +33,4 @@ export default defineConfig({
             },
         },
     },
-});
+}));

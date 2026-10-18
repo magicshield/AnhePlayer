@@ -5,7 +5,7 @@ import { CONTEXT_BRIDGE_KEY } from '@infra/globalContext/common/constant';
 import { tauriInvoke } from '../ipc';
 
 const defaultContext = {
-    appVersion: '1.0.18',
+    appVersion: '1.0.19',
     appPath: {
         defaultDownloadPath: 'C:\\Users\\Administrator\\Downloads',
         temp: 'C:\\Users\\Administrator\\AppData\\Local\\Temp',

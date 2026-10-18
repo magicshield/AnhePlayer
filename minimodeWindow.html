@@ -6,6 +6,55 @@
         <meta name="referrer" content="no-referrer" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <style id="themepack-node"></style>
+        <link rel="icon" href="data:," />
+        <script>
+            // 启动早期兜底：模块求值阶段的异常发生在 React 挂载之前，这里先注册可见的错误提示，
+            // 避免出现「白屏且无任何信息」的情况（React 成功挂载后会自动移除该提示）。
+            (function () {
+                function showBootError(text) {
+                    try {
+                        setTimeout(function () {
+                            var root = document.getElementById('root');
+                            if (!root || root.children.length > 0) return;
+                            var el = document.getElementById('boot-error-overlay');
+                            if (!el) {
+                                el = document.createElement('pre');
+                                el.id = 'boot-error-overlay';
+                                el.style.cssText =
+                                    'position:fixed;inset:0;z-index:2147483647;margin:0;padding:24px;' +
+                                    'background:#18181b;color:#f87171;font:13px/1.6 Consolas,Menlo,monospace;' +
+                                    'white-space:pre-wrap;overflow:auto;';
+                                (document.body || document.documentElement).appendChild(el);
+                                if (window.MutationObserver) {
+                                    new MutationObserver(function () {
+                                        if (root.children.length > 0) {
+                                            var overlay =
+                                                document.getElementById('boot-error-overlay');
+                                            if (overlay) overlay.remove();
+                                        }
+                                    }).observe(root, { childList: true });
+                                }
+                            }
+                            el.textContent += text + '\n\n';
+                        }, 1500);
+                    } catch (err) {
+                        // 兜底逻辑自身绝不允许再抛错
+                    }
+                }
+                window.addEventListener('error', function (e) {
+                    var err = e && e.error;
+                    showBootError(
+                        '[启动错误] ' + ((err && err.stack) || (e && e.message) || 'unknown error'),
+                    );
+                });
+                window.addEventListener('unhandledrejection', function (e) {
+                    var reason = e && e.reason;
+                    showBootError(
+                        '[未处理的 Promise 拒绝] ' + ((reason && reason.stack) || String(reason)),
+                    );
+                });
+            })();
+        </script>
     </head>
     <body>
         <div id="root"></div>
