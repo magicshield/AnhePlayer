@@ -214,6 +214,55 @@ export { index as icons };
 NODE_ENV=production npx electron-forge package
 ```
 
+**pnpm 11 补充（2026-10 实测）**：pnpm 11.9.0 下 `pnpm run <script>` 的依赖状态预检会因 node_modules 由 pnpm 9 创建而要求整目录重装，非 TTY 环境直接报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`（而非 10 的 engines 报错）。绕过方式：用 `npx -y pnpm@9 <command>`（与 CI 一致）执行脚本，或直接调 `node_modules/.bin/<工具>` 绕过 pnpm 包装。
+
+---
+
+### 2.6 双轨构建（Electron/webpack 与 Tauri/Vite）必须对齐编译期全局常量
+
+**触发信号**：Tauri 版安装后白屏，控制台报 `ReferenceError: __DEV__ is not defined`，且没有任何 React 错误浮层（1.0.19 之前版本的根因）。
+
+**根因/约束**：源码中使用了 webpack `DefinePlugin` 的编译期常量（`config/webpack.plugins.ts` 定义 `__DEV__`），Electron 构建正常替换；Vite 构建未配置对应 `define`，常量在产物中裸奔，模块顶层求值时（如 `router.tsx` 路由数组的 `...(__DEV__ ? [...] : [])`）直接抛 ReferenceError，入口模块图整体中断 → 白屏。入口文件内的错误浮层注册在模块体内，模块图中断时根本来不及执行，所以接不到这类错误。
+
+**正确做法**：
+1. `vite.config.ts` 与 webpack 语义对齐：`define: { __DEV__: JSON.stringify(mode !== 'production') }`（dev server 为 true，build 为 false）。
+2. 三个 Vite 入口 HTML（`mainWindow.html` / `lyricWindow.html` / `minimodeWindow.html`）内联「启动早期兜底」脚本：在 `<head>` 中最先注册 `error` / `unhandledrejection` 监听，仅当 `#root` 仍为空时显示错误堆栈，React 挂载成功后自动移除。
+3. **新增任何 webpack `DefinePlugin` 常量时，必须同步补 Vite `define`**；反之亦然。
+
+**验证方式**：`vite build` 后 `rg "__DEV__" dist/assets/*.js` 应为零匹配。
+
+**适用范围**：本项目所有「Electron + Tauri 双轨」构建期差异。
+
+---
+
+### 2.7 Tauri（WebView2）发布版白屏的远程调试定位法
+
+**触发信号**：已安装的 Tauri 应用白屏，日志目录无输出（启动早期即崩溃，logger 还没跑起来）。
+
+**根因/约束**：发布版无 DevTools 入口，白屏时看不到任何控制台信息，只能靠猜。
+
+**正确做法**：
+1. 启动应用前设置环境变量附加远程调试参数：`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9333 --remote-allow-origins=*'`。
+2. 访问 `http://localhost:9333/json/list` 拿页面 target，用 CDP（`Runtime.enable` + `Log.enable` + `Page.reload`）抓取完整加载过程的控制台与未捕获异常堆栈。
+3. 避开本机 Chrome 占用的 9222 等端口（Chrome 占 IPv4 时 WebView2 会退到 `[::1]` 监听，容易误判为"端口无响应"）。
+4. 端到端验证修复产物（无需重新打包）：`vite build` + `vite preview` 后，用 CDP `Page.navigate` 把窗口导航到 preview 地址，即可用真实 Rust 后端跑修复后的前端产物。注意此时页面属于 remote origin，`plugin:event|listen` 等内核插件命令会因 ACL 被拒（预期现象，非 Bug）；自定义命令与数据链路不受影响。
+
+**验证方式**：CDP 抓到 `[TauriBridge]` 日志序列与具体异常堆栈即定位成功；导航法能直接看到 UI 是否渲染（`#root` 子节点数）。
+
+**适用范围**：所有 Tauri v2（WebView2）发布版的问题定位。
+
+---
+
+### 2.8 本机无 MSVC 工具链，Tauri 本地构建走 CI
+
+**触发信号**：本地 `tauri build` 在链接阶段报 `link: extra operand '....rcgu.o'`。
+
+**根因/约束**：本机未安装 Visual Studio / MSVC（`C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe` 不存在），rustup 只有 `x86_64-pc-windows-msvc` 工具链；且从 Git Bash 调起 cargo 时，rustc 会把 Git 自带的 GNU `link.exe`（coreutils 硬链接工具）当作 MSVC 链接器调用，报 `extra operand`。
+
+**正确做法**：本地只做前端产物验证（`vite build` / `vite preview` + 2.7 的远程调试法）；完整 Tauri 安装包统一由 GitHub Actions（push v* 标签触发 `tauri-build.yml`）构建，不要为本地构建硬装 VS。
+
+**适用范围**：本项目所有本地构建/验证决策。
+
 ---
 
 ## 三、架构决策
