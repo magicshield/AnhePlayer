@@ -216,6 +216,8 @@ NODE_ENV=production npx electron-forge package
 
 **pnpm 11 补充（2026-10 实测）**：pnpm 11.9.0 下 `pnpm run <script>` 的依赖状态预检会因 node_modules 由 pnpm 9 创建而要求整目录重装，非 TTY 环境直接报 `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`（而非 10 的 engines 报错）。绕过方式：用 `npx -y pnpm@9 <command>`（与 CI 一致）执行脚本，或直接调 `node_modules/.bin/<工具>` 绕过 pnpm 包装。
 
+**提交场景补充（2026-10-18 实测）**：`git commit` 会触发 husky → lint-staged → pnpm，命中同一预检并直接使提交失败（`husky - pre-commit script failed`，退出码 1）。正确做法：提交前手动跑 `npx prettier --write <改动文件>` + `npx eslint <改动文件>`（与 hook 效果等价），再用 `git commit --no-verify` 提交；不要为了过 hook 去重建 node_modules。
+
 ---
 
 ### 2.6 双轨构建（Electron/webpack 与 Tauri/Vite）必须对齐编译期全局常量
@@ -248,6 +250,10 @@ NODE_ENV=production npx electron-forge package
 4. 端到端验证修复产物（无需重新打包）：`vite build` + `vite preview` 后，用 CDP `Page.navigate` 把窗口导航到 preview 地址，即可用真实 Rust 后端跑修复后的前端产物。注意此时页面属于 remote origin，`plugin:event|listen` 等内核插件命令会因 ACL 被拒（预期现象，非 Bug）；自定义命令与数据链路不受影响。
 
 **验证方式**：CDP 抓到 `[TauriBridge]` 日志序列与具体异常堆栈即定位成功；导航法能直接看到 UI 是否渲染（`#root` 子节点数）。
+
+**自动化实测补充（2026-10-18）**：
+1. CDP 驱动长流程（下载、轮询等）时，**页面内 `setTimeout` 在后台窗口会被 Chromium 节流**（约 1 分钟/跳），单条长表达式必然拖死；正确架构是「页面一步操作立即返回 + Node 侧轮询」（Node timer 不节流）。启动调试实例可加 `--disable-background-timer-throttling` 参数。
+2. 插件搜索桥 `callPluginMethod({ method: 'search', args: [kw, page, type] })` 的 type 必须用 UI 的 `SearchMediaType`（`music`/`album`/`artist`/`sheet`），传洛雪规范的 `song` 会命中 searcher 空分支，**静默返回空数组**而非报错。
 
 **适用范围**：所有 Tauri v2（WebView2）发布版的问题定位。
 
