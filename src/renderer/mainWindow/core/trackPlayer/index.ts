@@ -931,7 +931,8 @@ class TrackPlayer {
         }
 
         return {
-            url: fsUtil.addFileScheme(downloaded.path),
+            // WebView2 禁止页面加载 file:// 资源，本地文件必须走 asset 协议才能播放
+            url: fsUtil.pathToAssetUrl(downloaded.path),
             quality: downloaded.quality,
         };
     }

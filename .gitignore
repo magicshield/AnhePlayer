@@ -98,4 +98,5 @@ dist-deb/
 nvm-setup.exe
 changqing_chajian.js
 src-tauri/target/
+/temp
 

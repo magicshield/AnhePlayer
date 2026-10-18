@@ -6,6 +6,7 @@ import { Button } from '@renderer/mainWindow/components/ui/Button';
 import { Input } from '@renderer/mainWindow/components/ui/Input';
 import { showToast } from '@renderer/mainWindow/components/ui/Toast';
 import { showModal } from '@renderer/mainWindow/components/ui/Modal/modalManager';
+import { LOCAL_PLUGIN_NAME } from '@common/constant';
 import pluginManager from '@infra/pluginManager/renderer';
 import './index.scss';
 
@@ -13,7 +14,8 @@ type ImportType = 'importMusicItem' | 'importMusicSheet';
 
 interface PluginImportModalProps {
     close: () => void;
-    plugin: IPlugin.IPluginDelegate;
+    /** 目标插件；不传时先展示平台选择列表（侧边栏「导入歌单」入口） */
+    plugin?: IPlugin.IPluginDelegate;
     type: ImportType;
 }
 
@@ -21,28 +23,25 @@ interface PluginImportModalProps {
  * PluginImportModal — 导入单曲/歌单弹窗
  *
  * 单步流程：输入 URL → 加载 → 成功后链式打开 AddMusicToSheetModal
+ * 未指定 plugin 时：先选择平台（支持 importMusicSheet 的插件，不含本地）再输入
  */
 export default function PluginImportModal({ close, plugin, type }: PluginImportModalProps) {
     const { t } = useTranslation();
+    const [selectedPlugin, setSelectedPlugin] = useState<IPlugin.IPluginDelegate | null>(
+        plugin ?? null,
+    );
     const [inputValue, setInputValue] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const isTrack = type === 'importMusicItem';
-    const title = isTrack
-        ? `${t('plugin.method_import_music_item')} · ${plugin.platform}`
-        : `${t('plugin.method_import_music_sheet')} · ${plugin.platform}`;
-    const placeholder = isTrack
-        ? t('plugin.placeholder_import_music_item', { plugin: plugin.platform })
-        : t('plugin.placeholder_import_music_sheet', { plugin: plugin.platform });
-
     const handleConfirm = useCallback(async () => {
+        if (!selectedPlugin) return;
         const trimmed = inputValue.trim();
         if (!trimmed) return;
 
         setLoading(true);
         try {
             const result = await pluginManager.callPluginMethod({
-                hash: plugin.hash,
+                hash: selectedPlugin.hash,
                 method: type,
                 args: [trimmed],
             });
@@ -65,10 +64,41 @@ export default function PluginImportModal({ close, plugin, type }: PluginImportM
         } finally {
             setLoading(false);
         }
-    }, [inputValue, plugin.hash, type, close, t]);
+    }, [inputValue, selectedPlugin, type, close, t]);
+
+    // ── 未指定插件：先选择平台 ──
+    if (!selectedPlugin) {
+        const candidates = pluginManager
+            .getSupportedPlugin('importMusicSheet')
+            .filter((p) => p.platform !== LOCAL_PLUGIN_NAME);
+        return (
+            <Modal open onClose={close} title={t('plugin.method_import_music_sheet')} size="md">
+                <div className="plugin-modal__sheet-list">
+                    {candidates.map((p) => (
+                        <button
+                            key={p.hash}
+                            type="button"
+                            className="plugin-modal__sheet-item"
+                            onClick={() => setSelectedPlugin(p)}
+                        >
+                            <ListPlus size={16} />
+                            <span>{p.platform}</span>
+                        </button>
+                    ))}
+                </div>
+            </Modal>
+        );
+    }
 
     // ── hints ──
-    const hints = plugin.hints?.[type];
+    const isTrack = type === 'importMusicItem';
+    const title = isTrack
+        ? `${t('plugin.method_import_music_item')} · ${selectedPlugin.platform}`
+        : `${t('plugin.method_import_music_sheet')} · ${selectedPlugin.platform}`;
+    const placeholder = isTrack
+        ? t('plugin.placeholder_import_music_item', { plugin: selectedPlugin.platform })
+        : t('plugin.placeholder_import_music_sheet', { plugin: selectedPlugin.platform });
+    const hints = selectedPlugin.hints?.[type];
 
     return (
         <Modal

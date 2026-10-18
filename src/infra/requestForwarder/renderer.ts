@@ -108,10 +108,14 @@ class RequestForwarder {
      *
      * 仅 http/https 协议的 URL 需要代理，
      * blob:、data:、file: 等协议直接播放即可。
+     * asset.localhost 是 WebView2 内部拦截域名（Tauri asset 协议），
+     * Rust 侧代理的 reqwest 无法解析该域名，必须直连。
      */
     isProxyRequired(url: string): boolean {
         try {
-            const protocol = new URL(url).protocol;
+            const parsed = new URL(url);
+            if (parsed.hostname === 'asset.localhost') return false;
+            const protocol = parsed.protocol;
             return protocol === 'http:' || protocol === 'https:';
         } catch {
             return false;

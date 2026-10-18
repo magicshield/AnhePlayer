@@ -65,6 +65,23 @@ class FsUtilRenderer {
     }
 
     /**
+     * 将本地文件路径转换为 Tauri asset 协议 URL（供 audio 元素在 WebView2 中直接播放）。
+     * WebView2 禁止从 http 页面加载 file:// 资源（audio 报 MEDIA_ERR_SRC_NOT_SUPPORTED），
+     * 本地文件播放必须走 asset 协议。
+     */
+    public pathToAssetUrl(filePath: string): string {
+        const internals = (window as any).__TAURI_INTERNALS__;
+        if (internals?.convertFileSrc) {
+            try {
+                return internals.convertFileSrc(filePath, 'asset');
+            } catch {
+                /* 回退到手工拼接 */
+            }
+        }
+        return `http://asset.localhost/${encodeURIComponent(filePath)}`;
+    }
+
+    /**
      * 将 `file://` URL 转换为本地文件系统路径。
      * 与 `addFileScheme` 互为逆操作。
      * @throws {TypeError} 当传入的不是 `file:` 协议的 URL 时抛出

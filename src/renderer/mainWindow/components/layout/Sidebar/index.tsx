@@ -16,6 +16,7 @@ import {
     Settings,
     FlaskConical,
     PictureInPicture2,
+    Import as ImportIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
@@ -49,6 +50,11 @@ export default function Sidebar() {
 
     const handleCreateSheet = useCallback(() => {
         showModal('CreateSheetModal');
+    }, []);
+
+    const handleImportSheet = useCallback(() => {
+        // 不传 plugin：先在弹窗内选择平台，再输入歌单链接
+        showModal('PluginImportModal', { type: 'importMusicSheet' });
     }, []);
 
     return (
@@ -109,6 +115,14 @@ export default function Sidebar() {
                     <div className="l-sidebar__group-header">
                         <div className="l-sidebar__group-title">{t('playlist.created_sheets')}</div>
                         <div className="l-sidebar__group-actions">
+                            <button
+                                className="l-sidebar__group-action"
+                                type="button"
+                                title={t('plugin.method_import_music_sheet')}
+                                onClick={handleImportSheet}
+                            >
+                                <ImportIcon size={14} />
+                            </button>
                             <button
                                 className="l-sidebar__group-action"
                                 type="button"

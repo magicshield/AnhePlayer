@@ -1,11 +1,11 @@
 {
-    "version": "1.0.21",
+    "version": "1.0.22",
     "changeLog": [
-        "下载完成后自动写入封面与歌词标签（支持 MP3 / FLAC / M4A / OGG / Opus，其他播放器同样可见）",
-        "下载获取歌曲源失败时自动重试一次，并在失败提示中显示具体原因"
+        "修复本地歌曲与已下载歌曲无法播放（本地音源不再被错误送入请求代理）",
+        "恢复「导入歌单」入口：侧边栏「创建的歌单」区支持导入各平台歌单"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.21/AnhePlayer_1.0.21_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.21/AnhePlayer_1.0.21_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.22/AnhePlayer_1.0.22_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.22/AnhePlayer_1.0.22_x64_en-US.msi"
     ]
 }
