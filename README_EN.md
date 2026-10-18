@@ -18,7 +18,9 @@ English | [简体中文](./README.md)
 
 ## Overview
 
-Anhe Player is an Electron-based desktop music player for Windows, macOS, and Linux. It focuses on local data, external-plugin playback parsing, and UI customization. It does not include ads and does not upload your personal data.
+Anhe Player is a cross-platform, modern desktop music player for Windows, macOS, and Linux, powered by a dual-engine architecture supporting both **Tauri v2** and **Electron**. It focuses on local data management, external-plugin playback parsing, and UI customization. It contains no ads and does not collect or upload your personal data.
+
+The modern refactor features an isolated **Web Worker LX sound source sandbox** paired with a zero-cost **Tauri IPC ContextBridge adapter**, drastically reducing memory and CPU overhead while offering lightning-fast cold boot times.
 
 ## Download
 
@@ -26,7 +28,8 @@ Download the latest release from [GitHub Releases](https://github.com/raclen/Anh
 
 Available packages include:
 
-- Windows installer and portable package
+- **Tauri v2 lightweight installers** (Windows MSI / EXE, recommended)
+- Windows Electron installer and portable package
 - Windows 7 compatible installer and portable package
 - macOS x64 and arm64 DMG packages
 - Linux amd64 DEB and RPM packages
@@ -105,10 +108,13 @@ Curated themes currently available in the marketplace:
 
 ### Requirements
 
-| Dependency | Version |
-| ---------- | ------- |
-| Node.js    | 22      |
-| pnpm       | 9       |
+| Dependency | Version | Note |
+| ---------- | ------- | ---- |
+| Node.js    | 22      | Frontend & build runtime |
+| pnpm       | 9+      | Package manager |
+| Rust       | 1.80+   | Tauri v2 core compilation (Optional, only for Tauri) |
+
+> For comprehensive architecture design and migration details, please refer to the [Tauri Migration & Architecture Guide](./TAURI_MIGRATION_GUIDE.md).
 
 ### Quick Start
 
@@ -116,6 +122,11 @@ Curated themes currently available in the marketplace:
 git clone https://github.com/raclen/AnhePlayer.git
 cd AnhePlayer
 pnpm install
+
+# Option A: Start with Tauri v2 (Recommended)
+pnpm tauri:dev
+
+# Option B: Start with classic Electron
 pnpm start
 ```
 
@@ -123,8 +134,10 @@ pnpm start
 
 | Command            | Description                                        |
 | ------------------ | -------------------------------------------------- |
-| `pnpm start`       | Start the app                                      |
-| `pnpm run dev`     | Start development mode                             |
+| `pnpm tauri:dev`   | **Start Tauri v2 dev mode** (Vite + Rust core)     |
+| `pnpm tauri:build` | **Build Tauri v2 lightweight package** (MSI/EXE)   |
+| `pnpm start`       | Start Electron app                                 |
+| `pnpm run dev`     | Start Electron development mode                    |
 | `pnpm run package` | Package the app directory for the current platform |
 | `pnpm run make`    | Build installers for the current platform          |
 | `pnpm run lint`    | Run lint checks                                    |
@@ -134,7 +147,8 @@ pnpm start
 
 This project uses GitHub Actions to build release packages:
 
-- [`Build`](./.github/workflows/build.yml): builds packages and uploads Actions artifacts
+- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml): builds Tauri v2 installers for Windows/macOS/Linux and uploads releases
+- [`Build`](./.github/workflows/build.yml): builds Electron packages and uploads Actions artifacts
 - [`Release`](./.github/workflows/release.yml): downloads artifacts from a selected Build run and creates a GitHub Release
 
 ## Contributing

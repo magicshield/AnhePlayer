@@ -18,7 +18,9 @@
 
 ## 简介
 
-AnhePlayer 是一个基于 Electron 的桌面音乐播放器，支持 Windows、macOS 和 Linux。它专注于本地数据管理、外部插件音源解析和界面定制，不内置广告，也不会上传你的个人数据。
+AnhePlayer 是一款跨平台、现代化桌面音乐播放器，同时支持 **Tauri v2** 与 **Electron** 双桌面引擎（覆盖 Windows、macOS 和 Linux）。它专注于本地数据管理、外部插件音源解析和界面定制，不内置广告，也不会上传你的个人数据。
+
+全新重构版引入了基于 **Web Worker 的轻量洛雪音源沙箱** 与 **Tauri IPC 双轨适配层**，大幅降低了内存与 CPU 占用，带来秒级启动与流畅体验。
 <img width="1162" height="860" alt="image" src="https://github.com/user-attachments/assets/f2f6a069-229e-414a-9223-f4f9a9ad4ffc" />
 
 ## 下载
@@ -27,7 +29,8 @@ AnhePlayer 是一个基于 Electron 的桌面音乐播放器，支持 Windows、
 
 当前发布包包含：
 
-- Windows 安装版与便携版
+- **Tauri v2 超轻量安装包** (Windows MSI / EXE，推荐)
+- Windows Electron 安装版与便携版
 - Windows 7 兼容版安装包与便携版
 - macOS x64 与 arm64 DMG
 - Linux amd64 DEB 与 RPM
@@ -112,10 +115,13 @@ my-theme/
 
 ### 环境要求
 
-| 依赖    | 版本 |
-| ------- | ---- |
-| Node.js | 22   |
-| pnpm    | 9    |
+| 依赖    | 版本 | 说明 |
+| ------- | ---- | ---- |
+| Node.js | 22   | 前端与构建环境 |
+| pnpm    | 9+   | 包管理器 |
+| Rust    | 1.80+| Tauri v2 核心编译 (可选，仅用于 Tauri 运行) |
+
+> 详细的 Tauri v2 架构设计与迁移细节请参考 [Tauri 迁移与开发指南](./TAURI_MIGRATION_GUIDE.md)。
 
 ### 快速开始
 
@@ -123,25 +129,33 @@ my-theme/
 git clone https://github.com/raclen/AnhePlayer.git
 cd AnhePlayer
 pnpm install
+
+# 方式 A：以 Tauri v2 极速启动（推荐）
+pnpm tauri:dev
+
+# 方式 B：以经典 Electron 模式启动
 pnpm start
 ```
 
 ### 常用命令
 
-| 命令               | 说明                 |
-| ------------------ | -------------------- |
-| `pnpm start`       | 启动应用             |
-| `pnpm run dev`     | 开发模式             |
-| `pnpm run package` | 打包当前平台应用目录 |
-| `pnpm run make`    | 构建当前平台安装包   |
-| `pnpm run lint`    | 代码检查             |
-| `pnpm run format`  | 格式化代码           |
+| 命令               | 说明                                     |
+| ------------------ | ---------------------------------------- |
+| `pnpm tauri:dev`   | **Tauri v2 开发模式** (Vite + Rust 核心) |
+| `pnpm tauri:build` | **构建 Tauri v2 超轻量安装包** (MSI/EXE) |
+| `pnpm start`       | 启动 Electron 应用                       |
+| `pnpm run dev`     | Electron 开发调试模式                    |
+| `pnpm run package` | 打包当前平台 Electron 应用目录           |
+| `pnpm run make`    | 构建当前平台 Electron 安装包             |
+| `pnpm run lint`    | 代码检查                                 |
+| `pnpm run format`  | 格式化代码                               |
 
 ## 发布
 
 项目使用 GitHub Actions 构建多平台发布包：
 
-- [`Build`](./.github/workflows/build.yml)：构建并上传 Actions artifacts
+- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml)：自动构建 Tauri v2 Windows/macOS/Linux 安装包并上传 Releases
+- [`Build`](./.github/workflows/build.yml)：构建并上传 Electron Actions artifacts
 - [`Release`](./.github/workflows/release.yml)：从指定 Build run 下载 artifacts，并创建 GitHub Release
 
 ## 贡献
