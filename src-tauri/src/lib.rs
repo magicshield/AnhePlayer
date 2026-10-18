@@ -68,7 +68,7 @@ pub fn run() {
             plugin_load_all,
         ])
         .setup(|app| {
-            forwarder::init_forwarder(app.handle().clone());
+            commands::forwarder::init_forwarder(app.handle().clone());
             Ok(())
         })
         .run(tauri::generate_context!())

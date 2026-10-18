@@ -63,7 +63,7 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     let params = parse_query(query);
 
     let Some(target_url) = params.get("url").cloned().filter(|u| !u.is_empty()) else {
-        respond_plain(&request, 400, "missing url parameter");
+        respond_plain(request, 400, "missing url parameter");
         return;
     };
 
@@ -80,7 +80,7 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     {
         Ok(client) => client,
         Err(err) => {
-            respond_plain(&request, 500, &format!("client build failed: {err}"));
+            respond_plain(request, 500, &format!("client build failed: {err}"));
             return;
         }
     };
@@ -109,7 +109,7 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     let response = match upstream.send() {
         Ok(response) => response,
         Err(err) => {
-            respond_plain(&request, 502, &format!("upstream failed: {err}"));
+            respond_plain(request, 502, &format!("upstream failed: {err}"));
             return;
         }
     };
@@ -150,8 +150,11 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     let _ = request.respond(tiny_response);
 }
 
-fn respond_plain(request: &tiny_http::Request, status: u16, message: &str) {
-    let _ = request.respond(tiny_http::Response::from_string(message).with_status_code(status));
+/// 发送纯文本响应（Request::respond 按值消费，故这里取所有权）
+fn respond_plain(request: tiny_http::Request, status: u16, message: &str) {
+    let _ = request.respond(
+        tiny_http::Response::from_string(message).with_status_code(tiny_http::StatusCode(status)),
+    );
 }
 
 /// 这些头由底层 HTTP 栈管理，透传会破坏请求
