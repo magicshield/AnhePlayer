@@ -128,6 +128,13 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
         "expires",
     ];
     let mut out_headers = Vec::new();
+    // 允许页面侧 fetch/XHR（如 hls.js）跨源读取代理响应
+    if let Ok(acao) = tiny_http::Header::from_bytes(
+        &b"Access-Control-Allow-Origin"[..],
+        &b"*"[..],
+    ) {
+        out_headers.push(acao);
+    }
     for (name, value) in response.headers() {
         let lower = name.as_str().to_ascii_lowercase();
         if forwardable.contains(&lower.as_str()) {
@@ -152,9 +159,16 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
 
 /// 发送纯文本响应（Request::respond 按值消费，故这里取所有权）
 fn respond_plain(request: tiny_http::Request, status: u16, message: &str) {
-    let _ = request.respond(
-        tiny_http::Response::from_string(message).with_status_code(tiny_http::StatusCode(status)),
-    );
+    let mut response =
+        tiny_http::Response::from_string(message).with_status_code(tiny_http::StatusCode(status));
+    // 错误响应同样允许跨源读取，便于页面侧 fetch 拿到状态码
+    if let Ok(acao) = tiny_http::Header::from_bytes(
+        &b"Access-Control-Allow-Origin"[..],
+        &b"*"[..],
+    ) {
+        response = response.with_header(acao);
+    }
+    let _ = request.respond(response);
 }
 
 /// 这些头由底层 HTTP 栈管理，透传会破坏请求
