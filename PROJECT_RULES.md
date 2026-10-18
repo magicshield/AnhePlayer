@@ -282,6 +282,52 @@ NODE_ENV=production npx electron-forge package
 
 ---
 
+### 2.10 Tauri 运行时版本必须从 tauri.conf.json 读取，发版前四处版本号同步
+
+**触发信号**：应用已是最新版却弹「发现新版本」（2026-10-18 实测：应用自报 1.0.19，远端 version.json 已是 1.0.20）。
+
+**根因/约束**：版本号有四个事实源：`package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`、`release/version.json`。发版时若漏改其中一个（本次漏 Cargo.toml），而运行时代码用 `env!("CARGO_PKG_VERSION")`（来自 Cargo.toml）自报版本，就会与安装包/远端不一致，更新检查误判为「有新版本」。
+
+**正确做法**：
+1. Rust 侧运行时版本一律取 `app.package_info().version`（源自 tauri.conf.json，与安装包对齐），不要用 `env!("CARGO_PKG_VERSION")` 作为对外展示版本。
+2. 打标签前四处核对：`node -e` 读 package.json / release/version.json / tauri.conf.json，外加 grep Cargo.toml，必须全部等于目标版本。
+
+**验证方式**：冒烟用例 app-version 回报目标版本号；四方核对命令输出一致。
+
+**适用范围**：所有 Tauri 版发版与对外版本展示。
+
+---
+
+### 2.11 tauri-action 的 tagName 直接取 ref_name 会在 dispatch 构建误建同名标签与 Release
+
+**触发信号**：`git push origin master` 报 `src refspec master matches more than one`；Releases 页出现以分支名（master）为名的 Release；远端多出 `refs/tags/master`。
+
+**根因/约束**：workflow_dispatch 构建时 `github.ref_name` 是分支名；`tauri-action` 的 `tagName: ${{ github.ref_name }}` 会照单在远端创建同名 tag+Release，本地 IDE 自动 fetch 后出现同名 tag，与同名分支一起让短名 push 产生歧义。同类隐患：softprops 步骤 `|| 'v1.0.17'` 兜底，dispatch 勾选 release 会把新产物发到旧版本 Release（已一并移除，发版只由推标签触发）。
+
+**正确做法**：
+1. `tagName`/`releaseName` 仅标签构建传值：`${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}`；发布两步的条件也只看 `startsWith(github.ref, 'refs/tags/v')`。
+2. 已被同名 tag 干扰时：`gh release delete master --yes --cleanup-tag` + `git tag -d master`；推送一律用显式 refspec（`refs/heads/master:refs/heads/master`）兜底。
+
+**验证方式**：dispatch 构建后 `gh release list` 与 `git ls-remote --tags` 无分支名条目；标签构建正常发布且含 NSIS/MSI 资产。
+
+**适用范围**：本项目所有 CI 构建与发版流程。
+
+---
+
+### 2.12 本地转发代理必须回写 CORS 头，否则页面侧 fetch 静默失败
+
+**触发信号**：Tauri 版经 forwarder（127.0.0.1 随机端口）的请求在页面侧失败，但用 curl 请求同一代理 URL 返回 200 正常。
+
+**根因/约束**：页面 origin 为 `tauri.localhost`，访问 127.0.0.1 代理属跨源请求；tiny_http 默认响应不带 `Access-Control-Allow-Origin`，浏览器 fetch 直接拒绝读取响应体。curl 不做 CORS 检查，外部测试无法暴露此问题。
+
+**正确做法**：代理的成功与错误响应统一附加 `Access-Control-Allow-Origin: *`；此类功能必须页面内实测（CDP），不能只靠 curl。
+
+**验证方式**：冒烟用例 forwarder-proxy-fetch 在页面内 fetch 代理 URL 返回 200 与正文。
+
+**适用范围**：所有自建本地 HTTP 代理/转发服务。
+
+---
+
 ## 三、架构决策
 
 ### 3.1 不迁移到 Tauri
