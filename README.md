@@ -4,7 +4,7 @@
 
 # AnhePlayer
 
-一款跨平台、可定制、支持插件扩展的桌面音乐播放器。
+一款专为 Windows 打造的现代化、高颜值、支持洛雪音源插件的轻量音乐播放器。
 
 [English](./README_EN.md) | 简体中文
 
@@ -18,28 +18,25 @@
 
 ## 简介
 
-AnhePlayer 是一款跨平台、现代化桌面音乐播放器，同时支持 **Tauri v2** 与 **Electron** 双桌面引擎（覆盖 Windows、macOS 和 Linux）。它专注于本地数据管理、外部插件音源解析和界面定制，不内置广告，也不会上传你的个人数据。
+AnhePlayer 是一款专为 Windows 设计的现代化桌面音乐播放器，基于 **Tauri v2** 轻量级原生引擎打造。它专注于本地数据管理、外部插件音源解析和界面定制，不内置广告，也不会上传你的个人数据。
 
-全新重构版引入了基于 **Web Worker 的轻量洛雪音源沙箱** 与 **Tauri IPC 双轨适配层**，大幅降低了内存与 CPU 占用，带来秒级启动与流畅体验。
+全新版本引入了基于 **Web Worker 的轻量洛雪音源沙箱** 与 **Tauri IPC 双轨适配层**，大幅降低了内存与 CPU 占用，带来秒级冷启动与极致流畅体验。
 <img width="1162" height="860" alt="image" src="https://github.com/user-attachments/assets/f2f6a069-229e-414a-9223-f4f9a9ad4ffc" />
 
 ## 下载
 
 请前往 [GitHub Releases](https://github.com/raclen/AnhePlayer/releases) 下载最新版本。
 
-当前发布包包含：
+当前仅支持 **Windows (10 / 11)** 系统：
 
-- **Tauri v2 超轻量安装包** (Windows MSI / EXE，推荐)
-- Windows Electron 安装版与便携版
-- Windows 7 兼容版安装包与便携版
-- macOS x64 与 arm64 DMG
-- Linux amd64 DEB 与 RPM
+- **Windows 安装包** (`.msi` / `.exe`)
+- **Windows 便携免安装版** (解压即用)
 
 ## 功能模块
 
 | 模块           | 支持能力                                                                 |
 | -------------- | ------------------------------------------------------------------------ |
-| 跨平台桌面端   | 支持 Windows、macOS 和 Linux，提供安装包与便携版                         |
+| Windows 桌面端 | 专为 Windows 深度优化，秒级启动与极低内存占用，提供安装包与便携版         |
 | 播放与队列     | 支持播放队列、下一首播放、顺序/随机/单曲循环、倍速播放和音频输出设备选择 |
 | 在线音乐       | 通过插件提供歌曲、歌手、专辑、歌单、排行榜和热门歌单等内容浏览与搜索     |
 | 歌单管理       | 支持创建、重命名、删除、收藏、歌单内搜索，以及单曲/歌单链接导入          |
@@ -154,7 +151,7 @@ pnpm start
 
 项目使用 GitHub Actions 构建多平台发布包：
 
-- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml)：自动构建 Tauri v2 Windows/macOS/Linux 安装包并上传 Releases
+- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml)：自动构建 Windows (x86_64) 安装包并发布到 Releases
 - [`Build`](./.github/workflows/build.yml)：构建并上传 Electron Actions artifacts
 - [`Release`](./.github/workflows/release.yml)：从指定 Build run 下载 artifacts，并创建 GitHub Release
 

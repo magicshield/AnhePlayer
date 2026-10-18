@@ -4,7 +4,7 @@
 
 # Anhe Player
 
-A cross-platform, customizable desktop music player with plugin support.
+A modern, lightweight desktop music player tailored for Windows with LX sound source plugin support.
 
 English | [简体中文](./README.md)
 
@@ -18,7 +18,7 @@ English | [简体中文](./README.md)
 
 ## Overview
 
-Anhe Player is a cross-platform, modern desktop music player for Windows, macOS, and Linux, powered by a dual-engine architecture supporting both **Tauri v2** and **Electron**. It focuses on local data management, external-plugin playback parsing, and UI customization. It contains no ads and does not collect or upload your personal data.
+Anhe Player is a modern desktop music player built exclusively for Windows, powered by the lightweight **Tauri v2** native engine. It focuses on local data management, external-plugin playback parsing, and UI customization. It contains no ads and does not collect or upload your personal data.
 
 The modern refactor features an isolated **Web Worker LX sound source sandbox** paired with a zero-cost **Tauri IPC ContextBridge adapter**, drastically reducing memory and CPU overhead while offering lightning-fast cold boot times.
 
@@ -26,19 +26,16 @@ The modern refactor features an isolated **Web Worker LX sound source sandbox** 
 
 Download the latest release from [GitHub Releases](https://github.com/raclen/AnhePlayer/releases).
 
-Available packages include:
+Currently supports **Windows (10 / 11)**:
 
-- **Tauri v2 lightweight installers** (Windows MSI / EXE, recommended)
-- Windows Electron installer and portable package
-- Windows 7 compatible installer and portable package
-- macOS x64 and arm64 DMG packages
-- Linux amd64 DEB and RPM packages
+- **Windows Installers** (`.msi` / `.exe`)
+- **Windows Portable Edition** (Unzip and run)
 
 ## Features
 
 | Feature                       | Description                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------- |
-| Cross-platform desktop app    | Supports Windows, macOS, and Linux                                               |
+| Windows Desktop App           | Deeply optimized for Windows with sub-second cold boot and minimal memory footprint |
 | Plugin-based playback parsing | Supports LX `.js` plugins for playback URL parsing                               |
 | Source redirect               | Routes playback requests to available parser sources                             |
 | Multi-quality playback        | Supports low, standard, high, and super quality options when provided by plugins |
@@ -147,7 +144,7 @@ pnpm start
 
 This project uses GitHub Actions to build release packages:
 
-- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml): builds Tauri v2 installers for Windows/macOS/Linux and uploads releases
+- [`Tauri Build & Release`](./.github/workflows/tauri-build.yml): builds Windows (x86_64) installers and uploads to Releases
 - [`Build`](./.github/workflows/build.yml): builds Electron packages and uploads Actions artifacts
 - [`Release`](./.github/workflows/release.yml): downloads artifacts from a selected Build run and creates a GitHub Release
 
