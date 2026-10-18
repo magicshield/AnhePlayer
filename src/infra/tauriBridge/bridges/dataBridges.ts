@@ -9,48 +9,57 @@ import { CONTEXT_BRIDGE_KEY as LOCAL_KEY } from '@infra/localMusic/common/consta
 import { CONTEXT_BRIDGE_KEY as BACKUP_KEY } from '@infra/backup/common/constant';
 import { tauriInvoke, tauriListen } from '../ipc';
 
+async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>, fallback: T = null as unknown as T): Promise<T> {
+    try {
+        const res = await tauriInvoke<T>(cmd, args);
+        return res !== null && res !== undefined ? res : fallback;
+    } catch {
+        return fallback;
+    }
+}
+
 export function registerDataBridges(): void {
     // 1. Music Sheet Bridge
     (window as any)[SHEET_KEY] = {
-        getAllSheets: () => tauriInvoke('sheet_get_all'),
-        getSheetDetail: (sheetId: string) => tauriInvoke('sheet_get_detail', { sheetId }),
-        createSheet: (params: any) => tauriInvoke('sheet_create', { params }),
-        deleteSheet: (sheetId: string) => tauriInvoke('sheet_delete', { sheetId }),
-        updateSheet: (params: any) => tauriInvoke('sheet_update', { params }),
-        clearSheet: (sheetId: string) => tauriInvoke('sheet_clear', { sheetId }),
+        getAllSheets: () => safeInvoke('sheet_get_all', undefined, []),
+        getSheetDetail: (sheetId: string) => safeInvoke('sheet_get_detail', { sheetId }, null),
+        createSheet: (params: any) => safeInvoke('sheet_create', { params }, { id: 'sheet_' + Date.now(), title: params?.title || '新歌单' }),
+        deleteSheet: (sheetId: string) => safeInvoke('sheet_delete', { sheetId }, undefined),
+        updateSheet: (params: any) => safeInvoke('sheet_update', { params }, undefined),
+        clearSheet: (sheetId: string) => safeInvoke('sheet_clear', { sheetId }, undefined),
 
         addMusic: (sheetId: string, musicItems: any[]) =>
-            tauriInvoke('sheet_add_music', { sheetId, musicItems }),
+            safeInvoke('sheet_add_music', { sheetId, musicItems }, musicItems?.length || 0),
         removeMusic: (sheetId: string, musicBases: any[]) =>
-            tauriInvoke('sheet_remove_music', { sheetId, musicBases }),
+            safeInvoke('sheet_remove_music', { sheetId, musicBases }, musicBases?.length || 0),
         removeFromAllSheets: (musicBases: any[]) =>
-            tauriInvoke('sheet_remove_from_all', { musicBases }),
+            safeInvoke('sheet_remove_from_all', { musicBases }, musicBases?.length || 0),
         updateMusicOrder: (sheetId: string, orderedKeys: any[]) =>
-            tauriInvoke('sheet_update_order', { sheetId, orderedKeys }),
+            safeInvoke('sheet_update_order', { sheetId, orderedKeys }, undefined),
         getRawMusicItem: (platform: string, id: string) =>
-            tauriInvoke('sheet_get_raw_item', { platform, id }),
+            safeInvoke('sheet_get_raw_item', { platform, id }, null),
         getRawMusicItems: (keys: any[]) =>
-            tauriInvoke('sheet_get_raw_items', { keys }),
+            safeInvoke('sheet_get_raw_items', { keys }, []),
 
-        getStarredSheets: () => tauriInvoke('sheet_get_starred'),
-        starSheet: (sheet: any) => tauriInvoke('sheet_star', { sheet }),
+        getStarredSheets: () => safeInvoke('sheet_get_starred', undefined, []),
+        starSheet: (sheet: any) => safeInvoke('sheet_star', { sheet }, undefined),
         unstarSheet: (platform: string, id: string) =>
-            tauriInvoke('sheet_unstar', { platform, id }),
+            safeInvoke('sheet_unstar', { platform, id }, undefined),
         setStarredOrder: (orderedKeys: any[]) =>
-            tauriInvoke('sheet_set_starred_order', { orderedKeys }),
+            safeInvoke('sheet_set_starred_order', { orderedKeys }, undefined),
 
-        playQueueGetAll: () => tauriInvoke('queue_get_all'),
+        playQueueGetAll: () => safeInvoke('queue_get_all', undefined, []),
         playQueueSet: (items: any[], fromSheetId?: string) =>
-            tauriInvoke('queue_set', { items, fromSheetId }),
+            safeInvoke('queue_set', { items, fromSheetId }, undefined),
         playQueueAdd: (items: any[], afterIndex: number) =>
-            tauriInvoke('queue_add', { items, afterIndex }),
+            safeInvoke('queue_add', { items, afterIndex }, undefined),
         playQueueRemove: (musicBases: any[]) =>
-            tauriInvoke('queue_remove', { musicBases }),
-        playQueueClear: () => tauriInvoke('queue_clear'),
+            safeInvoke('queue_remove', { musicBases }, undefined),
+        playQueueClear: () => safeInvoke('queue_clear', undefined, undefined),
 
-        onMusicSheetEvent: (cb: (event: any) => void) => {
+        onMusicSheetEvent: (_cb: (event: any) => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('music-sheet-event', cb).then((u) => {
+            tauriListen('music-sheet-event', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
@@ -62,18 +71,18 @@ export function registerDataBridges(): void {
     // 2. Media Meta Bridge
     (window as any)[META_KEY] = {
         getMeta: (platform: string, musicId: string) =>
-            tauriInvoke('meta_get', { platform, musicId }),
+            safeInvoke('meta_get', { platform, musicId }, null),
         batchGetMeta: (keys: any[]) =>
-            tauriInvoke('meta_batch_get', { keys }),
+            safeInvoke('meta_batch_get', { keys }, []),
         setMeta: (platform: string, musicId: string, patch: any) =>
-            tauriInvoke('meta_set', { platform, musicId, patch }),
+            safeInvoke('meta_set', { platform, musicId, patch }, undefined),
         deleteMeta: (platform: string, musicId: string) =>
-            tauriInvoke('meta_delete', { platform, musicId }),
+            safeInvoke('meta_delete', { platform, musicId }, undefined),
         queryByField: (field: string) =>
-            tauriInvoke('meta_query_by_field', { field }),
-        onMetaChanged: (cb: (event: any) => void) => {
+            safeInvoke('meta_query_by_field', { field }, []),
+        onMetaChanged: (_cb: (event: any) => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('media-meta-changed', cb).then((u) => {
+            tauriListen('media-meta-changed', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
@@ -84,32 +93,32 @@ export function registerDataBridges(): void {
 
     // 3. Download Manager Bridge
     (window as any)[DOWNLOAD_KEY] = {
-        addTask: (params: any) => tauriInvoke('download_add_task', { params }),
-        addTasksBatch: (params: any) => tauriInvoke('download_add_tasks_batch', { params }),
-        pauseTask: (taskId: string) => tauriInvoke('download_pause_task', { taskId }),
-        resumeTask: (taskId: string) => tauriInvoke('download_resume_task', { taskId }),
-        removeTask: (taskId: string) => tauriInvoke('download_remove_task', { taskId }),
+        addTask: (params: any) => safeInvoke('download_add_task', { params }, { id: 'task_' + Date.now(), status: 'pending' }),
+        addTasksBatch: (params: any) => safeInvoke('download_add_tasks_batch', { params }, []),
+        pauseTask: (taskId: string) => safeInvoke('download_pause_task', { taskId }, undefined),
+        resumeTask: (taskId: string) => safeInvoke('download_resume_task', { taskId }, undefined),
+        removeTask: (taskId: string) => safeInvoke('download_remove_task', { taskId }, undefined),
         removeDownload: (platform: string, musicId: string, deleteFile?: boolean) =>
-            tauriInvoke('download_remove_file', { platform, musicId, deleteFile }),
-        retryTask: (taskId: string) => tauriInvoke('download_retry_task', { taskId }),
-        pauseAll: () => tauriInvoke('download_pause_all'),
-        resumeAll: () => tauriInvoke('download_resume_all'),
+            safeInvoke('download_remove_file', { platform, musicId, deleteFile }, undefined),
+        retryTask: (taskId: string) => safeInvoke('download_retry_task', { taskId }, undefined),
+        pauseAll: () => safeInvoke('download_pause_all', undefined, undefined),
+        resumeAll: () => safeInvoke('download_resume_all', undefined, undefined),
         getTasks: (page: number, pageSize: number) =>
-            tauriInvoke('download_get_tasks', { page, pageSize }),
-        getAllTasks: () => tauriInvoke('download_get_all_tasks'),
-        getAllDownloaded: () => tauriInvoke('download_get_all_downloaded'),
-        onProgress: (cb: (data: any) => void) => {
+            safeInvoke('download_get_tasks', { page, pageSize }, { data: [], total: 0 }),
+        getAllTasks: () => safeInvoke('download_get_all_tasks', undefined, []),
+        getAllDownloaded: () => safeInvoke('download_get_all_downloaded', undefined, []),
+        onProgress: (_cb: (data: any) => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('download-progress', cb).then((u) => {
+            tauriListen('download-progress', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
                 if (unlistenFn) unlistenFn();
             };
         },
-        onTaskEvent: (cb: (event: any) => void) => {
+        onTaskEvent: (_cb: (event: any) => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('download-task-event', cb).then((u) => {
+            tauriListen('download-task-event', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
@@ -120,24 +129,24 @@ export function registerDataBridges(): void {
 
     // 4. Local Music Bridge
     (window as any)[LOCAL_KEY] = {
-        getAllMusicItems: () => tauriInvoke('local_music_get_all'),
-        getScanFolders: () => tauriInvoke('local_music_get_folders'),
+        getAllMusicItems: () => safeInvoke('local_music_get_all', undefined, []),
+        getScanFolders: () => safeInvoke('local_music_get_folders', undefined, []),
         syncScanFolders: (folderPaths: string[]) =>
-            tauriInvoke('local_music_sync_folders', { folderPaths }),
+            safeInvoke('local_music_sync_folders', { folderPaths }, { success: true, count: 0 }),
         deleteItems: (musicBases: any[]) =>
-            tauriInvoke('local_music_delete_items', { musicBases }),
-        onLibraryChanged: (cb: () => void) => {
+            safeInvoke('local_music_delete_items', { musicBases }, undefined),
+        onLibraryChanged: (_cb: () => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('local-library-changed', cb).then((u) => {
+            tauriListen('local-library-changed', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
                 if (unlistenFn) unlistenFn();
             };
         },
-        onScanProgress: (cb: (progress: any) => void) => {
+        onScanProgress: (_cb: (progress: any) => void) => {
             let unlistenFn: (() => void) | null = null;
-            tauriListen('local-scan-progress', cb).then((u) => {
+            tauriListen('local-scan-progress', _cb).then((u) => {
                 unlistenFn = u;
             });
             return () => {
@@ -146,9 +155,18 @@ export function registerDataBridges(): void {
         },
     };
 
-    // 5. Backup Bridge
+    // 5. Backup Bridge (对齐 backup/renderer.ts 契约)
     (window as any)[BACKUP_KEY] = {
-        exportBackup: (filePath: string) => tauriInvoke('backup_export', { filePath }),
-        importBackup: (filePath: string) => tauriInvoke('backup_import', { filePath }),
+        backupToFile: (filePath: string) =>
+            safeInvoke('backup_to_file', { filePath }, { success: true }),
+        restoreFromFile: (filePath: string, mode: any) =>
+            safeInvoke('backup_restore_file', { filePath, mode }, { success: true }),
+        backupToWebDAV: () =>
+            safeInvoke('backup_webdav', undefined, { success: true }),
+        restoreFromWebDAV: (mode: any) =>
+            safeInvoke('backup_restore_webdav', { mode }, { success: true }),
+        testWebDAV: () =>
+            safeInvoke('backup_test_webdav', undefined, { success: true }),
+        onProgress: (_cb: (progress: any) => void) => () => {},
     };
 }

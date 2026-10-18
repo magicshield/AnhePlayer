@@ -1,3 +1,5 @@
+import '@infra/tauriBridge/autoInject';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -18,4 +20,7 @@ initTauriBridges()
                 <App />
             </StrictMode>,
         );
+    })
+    .catch((err) => {
+        console.error('[LyricWindow Bootstrap Failed]', err);
     });

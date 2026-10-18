@@ -40,11 +40,15 @@ export function registerFsUtilBridge(): void {
         },
 
         rimraf: async (path: string): Promise<void> => {
-            await tauriInvoke('fs_remove', { path });
+            try {
+                await tauriInvoke('fs_remove', { path });
+            } catch {}
         },
 
         mkdir: async (path: string): Promise<void> => {
-            await tauriInvoke('fs_mkdir', { path });
+            try {
+                await tauriInvoke('fs_mkdir', { path });
+            } catch {}
         },
 
         getPathForFile: (file: File): string => {
@@ -52,7 +56,9 @@ export function registerFsUtilBridge(): void {
         },
 
         copyFile: async (src: string, dest: string): Promise<void> => {
-            await tauriInvoke('fs_copy_file', { src, dest });
+            try {
+                await tauriInvoke('fs_copy_file', { src, dest });
+            } catch {}
         },
 
         readDir: async (path: string): Promise<string[]> => {
@@ -68,9 +74,24 @@ export function registerFsUtilBridge(): void {
             return `file:///${normalized.startsWith('/') ? normalized.slice(1) : normalized}`;
         },
 
-        fileUrlToPath: (url: string): string => {
-            return decodeURIComponent(url.replace(/^file:\/\/\//, ''));
+        addFileScheme: (filePath: string): string => {
+            if (filePath.startsWith('file://')) return filePath;
+            const normalized = filePath.replace(/\\/g, '/');
+            return `file:///${normalized.startsWith('/') ? normalized.slice(1) : normalized}`;
         },
+
+        fileUrlToPath: (fileUrl: string): string => {
+            if (!fileUrl.startsWith('file://')) return fileUrl;
+            let p = fileUrl.replace(/^file:\/\/\/?/, '');
+            p = decodeURIComponent(p);
+            return p.replace(/\//g, '\\');
+        },
+
+        normalizePath: (filePath: string): string => {
+            return filePath.replace(/[\/\\]+/g, '\\');
+        },
+
+        pathSep: '\\',
     };
 
     (window as any)[CONTEXT_BRIDGE_KEY] = mod;

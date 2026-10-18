@@ -4,26 +4,37 @@
 import { CONTEXT_BRIDGE_KEY } from '@infra/globalContext/common/constant';
 import { tauriInvoke } from '../ipc';
 
-export async function registerGlobalContextBridge(): Promise<void> {
-    const defaultContext = {
-        appVersion: '1.0.16',
-        appPath: {
-            defaultDownloadPath: 'C:\\Users\\Administrator\\Downloads',
-            temp: 'C:\\Users\\Administrator\\AppData\\Local\\Temp',
-            userData: 'C:\\Users\\Administrator\\AppData\\Roaming\\AnhePlayer',
-            res: '',
-        },
-        platform: 'win32',
-        isWin10OrAbove: true,
-    };
+const defaultContext = {
+    appVersion: '1.0.18',
+    appPath: {
+        defaultDownloadPath: 'C:\\Users\\Administrator\\Downloads',
+        temp: 'C:\\Users\\Administrator\\AppData\\Local\\Temp',
+        userData: 'C:\\Users\\Administrator\\AppData\\Roaming\\AnhePlayer',
+        res: '',
+    },
+    platform: 'win32',
+    isWin10OrAbove: true,
+};
 
-    try {
-        const remoteContext = await tauriInvoke('global_context_get');
-        const context = remoteContext || defaultContext;
-        (window as any)[CONTEXT_BRIDGE_KEY] = context;
-        (globalThis as any).globalContext = context;
-    } catch {
-        (window as any)[CONTEXT_BRIDGE_KEY] = defaultContext;
-        (globalThis as any).globalContext = defaultContext;
+// 同步初始化默认上下文，确保任何模块在加载求值时都能安全访问
+if (typeof window !== 'undefined') {
+    (window as any)[CONTEXT_BRIDGE_KEY] = { ...defaultContext };
+    (globalThis as any).globalContext = (window as any)[CONTEXT_BRIDGE_KEY];
+}
+
+export function registerGlobalContextBridge(): void {
+    if (typeof window !== 'undefined') {
+        (window as any)[CONTEXT_BRIDGE_KEY] = { ...defaultContext };
+        (globalThis as any).globalContext = (window as any)[CONTEXT_BRIDGE_KEY];
     }
+
+    // 异步更新远程 Rust 计算的动态系统真实路径
+    tauriInvoke('global_context_get')
+        .then((remoteContext) => {
+            if (remoteContext && typeof remoteContext === 'object') {
+                Object.assign((window as any)[CONTEXT_BRIDGE_KEY], remoteContext);
+                (globalThis as any).globalContext = (window as any)[CONTEXT_BRIDGE_KEY];
+            }
+        })
+        .catch(() => {});
 }

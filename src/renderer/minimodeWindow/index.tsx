@@ -1,3 +1,5 @@
+import '@infra/tauriBridge/autoInject';
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -7,11 +9,7 @@ import { initTauriBridges } from '@infra/tauriBridge';
 
 document.body.dataset.window = 'minimode';
 
-const container = document.getElementById('root');
-if (!container) {
-    throw new Error('Root element not found');
-}
-
+const container = document.getElementById('root')!;
 const root = createRoot(container);
 
 initTauriBridges()
@@ -22,4 +20,7 @@ initTauriBridges()
                 <App />
             </StrictMode>,
         );
+    })
+    .catch((err) => {
+        console.error('[MinimodeWindow Bootstrap Failed]', err);
     });

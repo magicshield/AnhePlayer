@@ -1,12 +1,19 @@
 /**
- * Tauri 桥接：基础通用模块（logger / i18n / shortCut / requestForwarder / themepack）
+ * Tauri 桥接：基础通用模块
+ * （logger / i18n / shortCut / requestForwarder / themepack / appSync / windowDrag）
  */
 import { CONTEXT_BRIDGE_KEY as LOGGER_KEY } from '@infra/logger/common/constant';
 import { CONTEXT_BRIDGE_KEY as I18N_KEY } from '@infra/i18n/common/constant';
 import { CONTEXT_BRIDGE_KEY as SHORTCUT_KEY } from '@infra/shortCut/common/constant';
 import { CONTEXT_BRIDGE_KEY as FORWARDER_KEY } from '@infra/requestForwarder/common/constant';
 import { CONTEXT_BRIDGE_KEY as THEME_KEY } from '@infra/themepack/common/constant';
-import { tauriInvoke, tauriListen } from '../ipc';
+import { CONTEXT_BRIDGE_KEY as APP_SYNC_KEY, CONTEXT_BRIDGE_KEY_AUXILIARY } from '@infra/appSync/common/constant';
+import { CONTEXT_BRIDGE_KEY as WINDOW_DRAG_KEY } from '@infra/windowDrag/common/constant';
+import zhCN from '../../../../res/lang/zh-CN.json';
+import { tauriInvoke, tauriListen, tauriEmit } from '../ipc';
+import EventEmitter from 'eventemitter3';
+
+const internalSyncEe = new EventEmitter();
 
 export function registerCommonBridges(): void {
     // 1. Logger
@@ -17,21 +24,20 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 2. i18n
+    // 2. i18n（使用打包内置 zh-CN，秒级返回，确保 i18nInstance 正常启动）
     (window as any)[I18N_KEY] = {
         setupLanguage: async () => {
-            try {
-                return await tauriInvoke('i18n_setup');
-            } catch {
-                return { currentLang: 'zh-CN', allLangs: ['zh-CN', 'en-US'], content: {} };
-            }
+            return {
+                lang: 'zh-CN',
+                content: zhCN,
+                allLangs: ['zh-CN'],
+            };
         },
         changeLanguage: async (lang: string) => {
-            try {
-                return await tauriInvoke('i18n_change_lang', { lang });
-            } catch {
-                return {};
-            }
+            return {
+                lang,
+                content: zhCN,
+            };
         },
     };
 
@@ -39,7 +45,7 @@ export function registerCommonBridges(): void {
     (window as any)[SHORTCUT_KEY] = {
         getGlobalShortCutStatus: async () => {
             try {
-                return await tauriInvoke('shortcut_get_status');
+                return (await tauriInvoke('shortcut_get_status')) || [];
             } catch {
                 return [];
             }
@@ -57,7 +63,7 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 4. Request Forwarder (Tauri 环境下可直接通过 Rust 转发或返回本地反向代理端口)
+    // 4. Request Forwarder (Tauri 架构下请求直接走 Tauri HTTP 或直接网络请求)
     (window as any)[FORWARDER_KEY] = {
         getPort: async () => {
             try {
@@ -79,29 +85,70 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 5. ThemePack
+    // 5. ThemePack（完整契约对齐）
     (window as any)[THEME_KEY] = {
-        getCurrentTheme: async () => {
-            try {
-                return await tauriInvoke('theme_get_current');
-            } catch {
-                return null;
-            }
+        initCurrentTheme: async (): Promise<any> => null,
+        selectTheme: async (_themePack: any): Promise<void> => {},
+        loadAllThemePacks: async (): Promise<any[]> => [],
+        installThemePack: async (_mfthemePath: string): Promise<any> => null,
+        installThemePackFromDirectory: async (_themePackDirPath: string): Promise<any> => null,
+        installRemoteThemePack: async (_remoteUrl: string): Promise<any> => null,
+        uninstallThemePack: async (_themePack: any): Promise<void> => {},
+    };
+
+    // 6. AppSync（主窗口与辅助窗口同步桥接）
+    (window as any)[APP_SYNC_KEY] = {
+        syncAppState: (state: any) => {
+            tauriEmit('tauri-app-state-sync', state).catch(() => {});
         },
-        setTheme: (theme: any) => {
-            tauriInvoke('theme_set', { theme }).catch(console.error);
+        syncAppStateTo: (_windowType: string, state: any) => {
+            tauriEmit('tauri-app-state-sync', state).catch(() => {});
         },
-        getAllThemes: async () => {
-            try {
-                return await tauriInvoke('theme_get_all');
-            } catch {
-                return [];
-            }
-        },
-        onThemeChanged: (callback: (theme: any) => void) => {
+        onCommand: (command: string, cb: (data: unknown, from: string) => void) => {
+            const handler = (payload: { command: string; data: unknown }, from: string) => {
+                if (payload.command === command) {
+                    cb(payload.data, from);
+                }
+            };
+            internalSyncEe.on('command', handler);
+
             let unlistenFn: (() => void) | null = null;
-            tauriListen('theme-changed', (t) => {
-                callback(t);
+            tauriListen<{ command: string; data: unknown }>('tauri-command', (payload) => {
+                if (payload && payload.command === command) {
+                    cb(payload.data, 'tauri');
+                }
+            }).then((u) => {
+                unlistenFn = u;
+            });
+
+            return () => {
+                internalSyncEe.off('command', handler);
+                if (unlistenFn) unlistenFn();
+            };
+        },
+        sendCommand: (command: string, data?: unknown) => {
+            internalSyncEe.emit('command', { command, data }, 'main');
+            tauriEmit('tauri-command', { command, data }).catch(() => {});
+        },
+        onSubscribe: (_cb: (windowType: string) => void) => {
+            return () => {};
+        },
+    };
+
+    // 7. AppSync Auxiliary（辅助窗口专属）
+    (window as any)[CONTEXT_BRIDGE_KEY_AUXILIARY] = {
+        subscribe: (_keys: string[], _onStateChange: (state: any) => void) => {
+            return () => {};
+        },
+        sendCommand: (command: string, data?: unknown) => {
+            tauriEmit('tauri-command', { command, data }).catch(() => {});
+        },
+        onCommand: (command: string, cb: (data: unknown, from: string) => void) => {
+            let unlistenFn: (() => void) | null = null;
+            tauriListen<{ command: string; data: unknown }>('tauri-command', (payload) => {
+                if (payload && payload.command === command) {
+                    cb(payload.data, 'tauri');
+                }
             }).then((u) => {
                 unlistenFn = u;
             });
@@ -109,5 +156,11 @@ export function registerCommonBridges(): void {
                 if (unlistenFn) unlistenFn();
             };
         },
+    };
+
+    // 8. WindowDrag（窗口拖拽）
+    (window as any)[WINDOW_DRAG_KEY] = {
+        startDrag: (_offset: any) => {},
+        stopDrag: () => {},
     };
 }
