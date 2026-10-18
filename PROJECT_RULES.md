@@ -254,6 +254,7 @@ NODE_ENV=production npx electron-forge package
 **自动化实测补充（2026-10-18）**：
 1. CDP 驱动长流程（下载、轮询等）时，**页面内 `setTimeout` 在后台窗口会被 Chromium 节流**（约 1 分钟/跳），单条长表达式必然拖死；正确架构是「页面一步操作立即返回 + Node 侧轮询」（Node timer 不节流）。启动调试实例可加 `--disable-background-timer-throttling` 参数。
 2. 插件搜索桥 `callPluginMethod({ method: 'search', args: [kw, page, type] })` 的 type 必须用 UI 的 `SearchMediaType`（`music`/`album`/`artist`/`sheet`），传洛雪规范的 `song` 会命中 searcher 空分支，**静默返回空数组**而非报错。
+3. **remote origin 页面下 `fs_*` 系列自定义命令会被 ACL 直接拒绝**（报 `Command fs_read_file not allowed by ACL`），JsonFileStore 等容错层会静默降级为空数据——远程调试时「数据全空」优先怀疑 ACL 而非代码或路径（globalContext.appPath 等值本身正常）；数据类验证请在 tauri.localhost 页面进行，纯前端播放链路不受影响。
 
 **适用范围**：所有 Tauri v2（WebView2）发布版的问题定位。
 
@@ -331,6 +332,24 @@ NODE_ENV=production npx electron-forge package
 **验证方式**：冒烟用例 forwarder-proxy-fetch 在页面内 fetch 代理 URL 返回 200 与正文。
 
 **适用范围**：所有自建本地 HTTP 代理/转发服务。
+
+---
+
+### 2.13 本地媒体播放必须走 asset 协议，且 asset URL 禁止进转发代理
+
+**触发信号**：Tauri 版本地歌曲/已下载歌曲点击播放无声或立即失败（Electron 版同位置正常）。
+
+**根因/约束**：
+1. 本地插件返回的播放 URL 是 `http://asset.localhost/...`（WebView2 内部拦截域名，Tauri asset 协议）；转发代理的 `isProxyRequired` 只按协议判断（http/https 一律代理），asset URL 被包进 Rust 转发代理后，reqwest 无法解析 `asset.localhost`，返回 502 `upstream failed`，播放必败（同一 URL 页面直连 fetch 是 200）。
+2. 已下载歌曲的 URL 曾走 `file:///`：WebView2 禁止从 http 页面加载 file 资源，audio 报 `MEDIA_ERR_SRC_NOT_SUPPORTED`（error code 4）。
+
+**正确做法**：
+1. `isProxyRequired` 显式排除 `asset.localhost`（hostname 判断），asset URL 一律直连。
+2. 本地路径 → 播放 URL 统一用 `fsUtil.pathToAssetUrl`（`convertFileSrc(path, 'asset')`），禁止用 `file:///`。
+
+**验证方式**：CDP 里 `new Audio(assetUrl)` 可 loadedmetadata；`fetch(proxyUrl(assetUrl))` 复现 502；播放后 `navigator.mediaSession.playbackState === 'playing'`。
+
+**适用范围**：所有 Tauri/WebView2 下的本地媒体播放与代理判断。
 
 ---
 
