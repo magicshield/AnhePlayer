@@ -39,6 +39,17 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
+      - name: Verify release/version.json matches tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          EXPECTED="${GITHUB_REF_NAME#v}"
+          ACTUAL=$(node -p "require('./release/version.json').version")
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "::error::release/version.json 的 version ($ACTUAL) 与标签 ($EXPECTED) 不一致，请先更新 release/version.json 再打标签"
+            exit 1
+          fi
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -75,6 +86,10 @@ jobs:
             src-tauri/target/release/*.exe
           if-no-files-found: warn
 
+      - name: Generate release notes from version.json
+        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == true
+        run: node ./scripts/gen-release-notes.mjs
+
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == true
         uses: softprops/action-gh-release@v2
@@ -83,11 +98,7 @@ jobs:
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.17' }}
           name: ${{ startsWith(github.ref, 'refs/tags/v') && format('AnhePlayer {0}', github.ref_name) || 'AnhePlayer v1.0.17' }}
-          body: |
-            ### AnhePlayer Tauri v2 Release 🎉
-            - 全新轻量化 Tauri v2 核心驱动，超低内存占用与秒级启动
-            - Web Worker 隔离沙箱与网络跨域穿透，全面兼容洛雪音源插件
-            - 保持原有 UI 与歌单数据完全兼容
+          body_path: ./release-notes.md
           draft: false
           prerelease: false
           files: |

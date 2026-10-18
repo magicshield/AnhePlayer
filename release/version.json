@@ -1,10 +1,12 @@
 {
-  "version": "1.0.16",
-  "changeLog": [
-    "修正关于页面的作者信息为 raclen，并关联正确的 GitHub 主页",
-    "清理关于页面中已失效的旧作者社交渠道与相关展示"
-  ],
-  "download": [
-    "https://r0rvr854dd1.feishu.cn/drive/folder/IrVEfD67KlWZGkdqwjecLHFNnBb?from=from_copylink"
-  ]
+    "version": "1.0.19",
+    "changeLog": [
+        "修复 Tauri 版启动白屏问题：生产构建缺少 __DEV__ 编译期常量导致模块加载中断",
+        "新增启动早期错误兜底：启动异常时直接显示错误堆栈，不再静默白屏",
+        "消除 favicon 噪音请求"
+    ],
+    "download": [
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.19/AnhePlayer_1.0.19_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.19/AnhePlayer_1.0.19_x64_en-US.msi"
+    ]
 }

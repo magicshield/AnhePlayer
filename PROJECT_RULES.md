@@ -265,6 +265,23 @@ NODE_ENV=production npx electron-forge package
 
 ---
 
+### 2.9 发版必须同步 release/version.json（应用内“更新公告”数据源）
+
+**触发信号**：新版本已发布，但应用内「检查更新」提示的仍是旧版本（如 v1.0.19 已发布、公告内容停留在 1.0.16/1.0.18）。
+
+**根因/约束**：`check_update` 读取仓库内 `release/version.json`（version/changeLog/download，经 raw / jsdelivr / gh-proxy 多镜像竞速拉取）。Electron 时代每次 `chore: prepare X release` 都会同步更新该文件；迁移 Tauri 后由 tag 触发的 CI 自动发版不再包含这一步，公告因此滞留旧版本。
+
+**正确做法**：
+1. 发版前把 `release/version.json` 的 version/changeLog/download 更新到目标版本，download 指向对应 tag 的 GitHub Release 资产地址。
+2. `tauri-build.yml` 已加入前置校验（tag 与 version.json.version 不一致直接构建失败）与发布说明生成步骤（Release body 由 version.json 的 changeLog 生成，单一数据源）。
+3. Tauri 端 `check_update` 命令必须实现与 Electron 相同的 UPDATE_SOURCES 拉取与版本比较逻辑，否则应用内根本不会展示更新公告。
+
+**验证方式**：`curl -s https://raw.githubusercontent.com/raclen/AnhePlayer/master/release/version.json` 的 version 应与最新 tag 一致。
+
+**适用范围**：所有正式发布流程。
+
+---
+
 ## 三、架构决策
 
 ### 3.1 不迁移到 Tauri
