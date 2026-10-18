@@ -1,12 +1,13 @@
 /**
  * Tauri 桥接：基础通用模块
- * （logger / i18n / shortCut / requestForwarder / themepack / appSync / windowDrag）
+ * （logger / i18n / shortCut / requestForwarder / appSync / windowDrag）
+ *
+ * 注：themepack 已拆分至独立模块 themepackBridge.ts
  */
 import { CONTEXT_BRIDGE_KEY as LOGGER_KEY } from '@infra/logger/common/constant';
 import { CONTEXT_BRIDGE_KEY as I18N_KEY } from '@infra/i18n/common/constant';
 import { CONTEXT_BRIDGE_KEY as SHORTCUT_KEY } from '@infra/shortCut/common/constant';
 import { CONTEXT_BRIDGE_KEY as FORWARDER_KEY } from '@infra/requestForwarder/common/constant';
-import { CONTEXT_BRIDGE_KEY as THEME_KEY } from '@infra/themepack/common/constant';
 import { CONTEXT_BRIDGE_KEY as APP_SYNC_KEY, CONTEXT_BRIDGE_KEY_AUXILIARY } from '@infra/appSync/common/constant';
 import { CONTEXT_BRIDGE_KEY as WINDOW_DRAG_KEY } from '@infra/windowDrag/common/constant';
 import zhCN from '../../../../res/lang/zh-CN.json';
@@ -41,15 +42,9 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 3. ShortCut
+    // 3. ShortCut（Tauri 版暂不支持全局快捷键，返回空列表保持接口兼容）
     (window as any)[SHORTCUT_KEY] = {
-        getGlobalShortCutStatus: async () => {
-            try {
-                return (await tauriInvoke('shortcut_get_status')) || [];
-            } catch {
-                return [];
-            }
-        },
+        getGlobalShortCutStatus: async (): Promise<any[]> => [],
         onGlobalShortCutStatusChanged: (callback: (status: any) => void) => {
             let unlistenFn: (() => void) | null = null;
             tauriListen('shortcut-status-changed', (data) => {
@@ -85,18 +80,7 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 5. ThemePack（完整契约对齐）
-    (window as any)[THEME_KEY] = {
-        initCurrentTheme: async (): Promise<any> => null,
-        selectTheme: async (_themePack: any): Promise<void> => {},
-        loadAllThemePacks: async (): Promise<any[]> => [],
-        installThemePack: async (_mfthemePath: string): Promise<any> => null,
-        installThemePackFromDirectory: async (_themePackDirPath: string): Promise<any> => null,
-        installRemoteThemePack: async (_remoteUrl: string): Promise<any> => null,
-        uninstallThemePack: async (_themePack: any): Promise<void> => {},
-    };
-
-    // 6. AppSync（主窗口与辅助窗口同步桥接）
+    // 5. AppSync（主窗口与辅助窗口同步桥接）
     (window as any)[APP_SYNC_KEY] = {
         syncAppState: (state: any) => {
             tauriEmit('tauri-app-state-sync', state).catch(() => {});

@@ -28,6 +28,8 @@ interface IMod {
     installThemePackFromDirectory(themePackDirPath: string): Promise<IThemePack | null>;
     installRemoteThemePack(remoteUrl: string): Promise<IThemePack | null>;
     uninstallThemePack(themePack: IThemePack): Promise<void>;
+    /** Tauri 扩展：解析打包内联资源（非 Tauri 环境不存在） */
+    resolveBundledResUrl?(relativePath: string): string | null;
 }
 
 const mod = window[CONTEXT_BRIDGE_KEY as any] as unknown as IMod;
@@ -119,6 +121,20 @@ class ThemePackRenderer {
         const current = defaultStore.get(currentThemePackAtom);
         if (current?.path === themePack.path) {
             await this.selectTheme(null);
+        }
+    }
+
+    /**
+     * 解析打包内联资源路径（Tauri 环境下 res 目录不存在，主题市场预览走此通道）。
+     * 非 Tauri 环境（如 Electron）没有该桥方法，返回 null 由调用方自行回退。
+     */
+    public resolveBundledResUrl(relativePath: string): string | null {
+        const fn = (mod as any).resolveBundledResUrl;
+        if (typeof fn !== 'function') return null;
+        try {
+            return fn(relativePath) ?? null;
+        } catch {
+            return null;
         }
     }
 

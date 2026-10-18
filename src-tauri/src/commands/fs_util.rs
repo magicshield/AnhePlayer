@@ -71,3 +71,8 @@ pub fn fs_read_dir(path: String) -> Result<Vec<String>, String> {
     }
     Ok(names)
 }
+
+#[tauri::command]
+pub fn fs_rename(src: String, dest: String) -> Result<(), String> {
+    fs::rename(src, dest).map_err(|e| e.to_string())
+}

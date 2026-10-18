@@ -1,172 +1,115 @@
 /**
  * Tauri 桥接：数据与持久化业务模块
  * 覆盖：musicSheet / mediaMeta / downloadManager / localMusic / backup
+ *
+ * 架构说明：Tauri 版为纯 JS 实现（数据落盘于 <userData>/anhe-player-data/*.json），
+ * 行为语义严格对齐 Electron 主进程版本（SQLite → 内存 + JSON 持久化）。
+ * 事件（music-sheet-event / media-meta-changed / download 进度与任务事件 /
+ * localMusic 进度与库变更 / backup 进度）均通过本地监听器回调传递，
+ * 因为所有消费方与桥同处一个渲染进程上下文。
  */
 import { CONTEXT_BRIDGE_KEY as SHEET_KEY } from '@infra/musicSheet/common/constant';
 import { CONTEXT_BRIDGE_KEY as META_KEY } from '@infra/mediaMeta/common/constant';
 import { CONTEXT_BRIDGE_KEY as DOWNLOAD_KEY } from '@infra/downloadManager/common/constant';
 import { CONTEXT_BRIDGE_KEY as LOCAL_KEY } from '@infra/localMusic/common/constant';
 import { CONTEXT_BRIDGE_KEY as BACKUP_KEY } from '@infra/backup/common/constant';
-import { tauriInvoke, tauriListen } from '../ipc';
-
-async function safeInvoke<T>(cmd: string, args?: Record<string, unknown>, fallback: T = null as unknown as T): Promise<T> {
-    try {
-        const res = await tauriInvoke<T>(cmd, args);
-        return res !== null && res !== undefined ? res : fallback;
-    } catch {
-        return fallback;
-    }
-}
+import { backupStore } from './data/backupStore';
+import { downloadStore } from './data/downloadStore';
+import { localMusicStore } from './data/localMusicStore';
+import { mediaMetaStore } from './data/mediaMetaStore';
+import { musicSheetStore } from './data/musicSheetStore';
 
 export function registerDataBridges(): void {
     // 1. Music Sheet Bridge
     (window as any)[SHEET_KEY] = {
-        getAllSheets: () => safeInvoke('sheet_get_all', undefined, []),
-        getSheetDetail: (sheetId: string) => safeInvoke('sheet_get_detail', { sheetId }, null),
-        createSheet: (params: any) => safeInvoke('sheet_create', { params }, { id: 'sheet_' + Date.now(), title: params?.title || '新歌单' }),
-        deleteSheet: (sheetId: string) => safeInvoke('sheet_delete', { sheetId }, undefined),
-        updateSheet: (params: any) => safeInvoke('sheet_update', { params }, undefined),
-        clearSheet: (sheetId: string) => safeInvoke('sheet_clear', { sheetId }, undefined),
+        getAllSheets: () => musicSheetStore.getAllSheets(),
+        getSheetDetail: (sheetId: string) => musicSheetStore.getSheetDetail(sheetId),
+        createSheet: (params: any) => musicSheetStore.createSheet(params),
+        deleteSheet: (sheetId: string) => musicSheetStore.deleteSheet(sheetId),
+        updateSheet: (params: any) => musicSheetStore.updateSheet(params),
+        clearSheet: (sheetId: string) => musicSheetStore.clearSheet(sheetId),
 
         addMusic: (sheetId: string, musicItems: any[]) =>
-            safeInvoke('sheet_add_music', { sheetId, musicItems }, musicItems?.length || 0),
+            musicSheetStore.addMusic(sheetId, musicItems),
         removeMusic: (sheetId: string, musicBases: any[]) =>
-            safeInvoke('sheet_remove_music', { sheetId, musicBases }, musicBases?.length || 0),
+            musicSheetStore.removeMusic(sheetId, musicBases),
         removeFromAllSheets: (musicBases: any[]) =>
-            safeInvoke('sheet_remove_from_all', { musicBases }, musicBases?.length || 0),
+            musicSheetStore.removeFromAllSheets(musicBases),
         updateMusicOrder: (sheetId: string, orderedKeys: any[]) =>
-            safeInvoke('sheet_update_order', { sheetId, orderedKeys }, undefined),
+            musicSheetStore.updateMusicOrder(sheetId, orderedKeys),
         getRawMusicItem: (platform: string, id: string) =>
-            safeInvoke('sheet_get_raw_item', { platform, id }, null),
-        getRawMusicItems: (keys: any[]) =>
-            safeInvoke('sheet_get_raw_items', { keys }, []),
+            musicSheetStore.getRawMusicItem(platform, id),
+        getRawMusicItems: (keys: any[]) => musicSheetStore.getRawMusicItems(keys),
 
-        getStarredSheets: () => safeInvoke('sheet_get_starred', undefined, []),
-        starSheet: (sheet: any) => safeInvoke('sheet_star', { sheet }, undefined),
+        getStarredSheets: () => musicSheetStore.getStarredSheets(),
+        starSheet: (sheet: any) => musicSheetStore.starSheet(sheet),
         unstarSheet: (platform: string, id: string) =>
-            safeInvoke('sheet_unstar', { platform, id }, undefined),
+            musicSheetStore.unstarSheet(platform, id),
         setStarredOrder: (orderedKeys: any[]) =>
-            safeInvoke('sheet_set_starred_order', { orderedKeys }, undefined),
+            musicSheetStore.setStarredOrder(orderedKeys),
 
-        playQueueGetAll: () => safeInvoke('queue_get_all', undefined, []),
+        playQueueGetAll: () => musicSheetStore.playQueueGetAll(),
         playQueueSet: (items: any[], fromSheetId?: string) =>
-            safeInvoke('queue_set', { items, fromSheetId }, undefined),
+            musicSheetStore.playQueueSet(items, fromSheetId),
         playQueueAdd: (items: any[], afterIndex: number) =>
-            safeInvoke('queue_add', { items, afterIndex }, undefined),
-        playQueueRemove: (musicBases: any[]) =>
-            safeInvoke('queue_remove', { musicBases }, undefined),
-        playQueueClear: () => safeInvoke('queue_clear', undefined, undefined),
+            musicSheetStore.playQueueAdd(items, afterIndex),
+        playQueueRemove: (musicBases: any[]) => musicSheetStore.playQueueRemove(musicBases),
+        playQueueClear: () => musicSheetStore.playQueueClear(),
 
-        onMusicSheetEvent: (_cb: (event: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('music-sheet-event', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
+        onMusicSheetEvent: (cb: (event: any) => void) => musicSheetStore.onMusicSheetEvent(cb),
     };
 
     // 2. Media Meta Bridge
     (window as any)[META_KEY] = {
         getMeta: (platform: string, musicId: string) =>
-            safeInvoke('meta_get', { platform, musicId }, null),
-        batchGetMeta: (keys: any[]) =>
-            safeInvoke('meta_batch_get', { keys }, []),
+            mediaMetaStore.getMeta(platform, musicId),
+        batchGetMeta: (keys: any[]) => mediaMetaStore.batchGetMeta(keys),
         setMeta: (platform: string, musicId: string, patch: any) =>
-            safeInvoke('meta_set', { platform, musicId, patch }, undefined),
+            mediaMetaStore.setMeta(platform, musicId, patch),
         deleteMeta: (platform: string, musicId: string) =>
-            safeInvoke('meta_delete', { platform, musicId }, undefined),
-        queryByField: (field: string) =>
-            safeInvoke('meta_query_by_field', { field }, []),
-        onMetaChanged: (_cb: (event: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('media-meta-changed', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
+            mediaMetaStore.deleteMeta(platform, musicId),
+        queryByField: (field: string) => mediaMetaStore.queryByField(field),
+        onMetaChanged: (cb: (event: any) => void) => mediaMetaStore.onMetaChanged(cb),
     };
 
     // 3. Download Manager Bridge
     (window as any)[DOWNLOAD_KEY] = {
-        addTask: (params: any) => safeInvoke('download_add_task', { params }, { id: 'task_' + Date.now(), status: 'pending' }),
-        addTasksBatch: (params: any) => safeInvoke('download_add_tasks_batch', { params }, []),
-        pauseTask: (taskId: string) => safeInvoke('download_pause_task', { taskId }, undefined),
-        resumeTask: (taskId: string) => safeInvoke('download_resume_task', { taskId }, undefined),
-        removeTask: (taskId: string) => safeInvoke('download_remove_task', { taskId }, undefined),
+        addTask: (params: any) => downloadStore.addTask(params),
+        addTasksBatch: (params: any) => downloadStore.addTasksBatch(params),
+        pauseTask: (taskId: string) => downloadStore.pauseTask(taskId),
+        resumeTask: (taskId: string) => downloadStore.resumeTask(taskId),
+        removeTask: (taskId: string) => downloadStore.removeTask(taskId),
         removeDownload: (platform: string, musicId: string, deleteFile?: boolean) =>
-            safeInvoke('download_remove_file', { platform, musicId, deleteFile }, undefined),
-        retryTask: (taskId: string) => safeInvoke('download_retry_task', { taskId }, undefined),
-        pauseAll: () => safeInvoke('download_pause_all', undefined, undefined),
-        resumeAll: () => safeInvoke('download_resume_all', undefined, undefined),
-        getTasks: (page: number, pageSize: number) =>
-            safeInvoke('download_get_tasks', { page, pageSize }, { data: [], total: 0 }),
-        getAllTasks: () => safeInvoke('download_get_all_tasks', undefined, []),
-        getAllDownloaded: () => safeInvoke('download_get_all_downloaded', undefined, []),
-        onProgress: (_cb: (data: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('download-progress', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
-        onTaskEvent: (_cb: (event: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('download-task-event', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
+            downloadStore.removeDownload(platform, musicId, deleteFile),
+        retryTask: (taskId: string) => downloadStore.retryTask(taskId),
+        pauseAll: () => downloadStore.pauseAll(),
+        resumeAll: () => downloadStore.resumeAll(),
+        getTasks: (page: number, pageSize: number) => downloadStore.getTasks(page, pageSize),
+        getAllTasks: () => downloadStore.getAllTasks(),
+        getAllDownloaded: () => downloadStore.getAllDownloaded(),
+        onProgress: (cb: (data: any) => void) => downloadStore.onProgress(cb),
+        onTaskEvent: (cb: (event: any) => void) => downloadStore.onTaskEvent(cb),
     };
 
     // 4. Local Music Bridge
     (window as any)[LOCAL_KEY] = {
-        getAllMusicItems: () => safeInvoke('local_music_get_all', undefined, []),
-        getScanFolders: () => safeInvoke('local_music_get_folders', undefined, []),
+        getAllMusicItems: () => localMusicStore.getAllMusicItems(),
+        getScanFolders: () => localMusicStore.getScanFolders(),
         syncScanFolders: (folderPaths: string[]) =>
-            safeInvoke('local_music_sync_folders', { folderPaths }, { success: true, count: 0 }),
-        deleteItems: (musicBases: any[]) =>
-            safeInvoke('local_music_delete_items', { musicBases }, undefined),
-        onLibraryChanged: (_cb: () => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('local-library-changed', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
-        onScanProgress: (_cb: (progress: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('local-scan-progress', _cb).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
+            localMusicStore.syncScanFolders(folderPaths),
+        deleteItems: (musicBases: any[]) => localMusicStore.deleteItems(musicBases),
+        onLibraryChanged: (cb: () => void) => localMusicStore.onLibraryChanged(cb),
+        onScanProgress: (cb: (progress: any) => void) => localMusicStore.onScanProgress(cb),
     };
 
-    // 5. Backup Bridge (对齐 backup/renderer.ts 契约)
+    // 5. Backup Bridge
     (window as any)[BACKUP_KEY] = {
-        backupToFile: (filePath: string) =>
-            safeInvoke('backup_to_file', { filePath }, { success: true }),
+        backupToFile: (filePath: string) => backupStore.backupToFile(filePath),
         restoreFromFile: (filePath: string, mode: any) =>
-            safeInvoke('backup_restore_file', { filePath, mode }, { success: true }),
-        backupToWebDAV: () =>
-            safeInvoke('backup_webdav', undefined, { success: true }),
-        restoreFromWebDAV: (mode: any) =>
-            safeInvoke('backup_restore_webdav', { mode }, { success: true }),
-        testWebDAV: () =>
-            safeInvoke('backup_test_webdav', undefined, { success: true }),
-        onProgress: (_cb: (progress: any) => void) => () => {},
+            backupStore.restoreFromFile(filePath, mode),
+        backupToWebDAV: () => backupStore.backupToWebDAV(),
+        restoreFromWebDAV: (mode: any) => backupStore.restoreFromWebDAV(mode),
+        testWebDAV: () => backupStore.testWebDAV(),
+        onProgress: (cb: (progress: any) => void) => backupStore.onProgress(cb),
     };
 }

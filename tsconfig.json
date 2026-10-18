@@ -24,5 +24,6 @@
             "@infra/*": ["src/infra/*"]
         }
     },
-    "include": ["src/**/*"]
+    "include": ["src/**/*"],
+    "exclude": ["src/infra/tauriBridge/**", "src/infra/pluginManager/worker/**"]
 }

@@ -78,6 +78,9 @@ function buildResPath(relativePath: string): string {
 }
 
 function buildFileUrl(relativePath: string): string {
+    // Tauri 包不含 res 目录：优先使用打包内联资源解析（data URL）
+    const bundled = themePack.resolveBundledResUrl(relativePath);
+    if (bundled) return bundled;
     return `file:///${buildResPath(relativePath).replace(/\\/g, '/')}`;
 }
 

@@ -56,6 +56,33 @@ export default function PluginInstallModal({ close }: PluginInstallModalProps) {
         [close, t],
     );
 
+    // ── 通过代码内容安装（复用于 WebView2 无真实路径的拖拽场景） ──
+    const installFromCode = useCallback(
+        async (code: string) => {
+            setInstalling(true);
+            try {
+                const installResult = await pluginManager.installPluginFromCode(code);
+                if (installResult.success) {
+                    showToast(t('plugin.install_successfully'));
+                    close();
+                } else {
+                    showToast(
+                        `${t('plugin.install_failed')}: ${installResult.message ?? t('plugin.invalid_plugin')}`,
+                        { type: 'warn' },
+                    );
+                }
+            } catch (e: any) {
+                showToast(
+                    `${t('plugin.install_failed')}: ${e?.message ?? t('plugin.invalid_plugin')}`,
+                    { type: 'warn' },
+                );
+            } finally {
+                setInstalling(false);
+            }
+        },
+        [close, t],
+    );
+
     // ── 本地安装（文件选择器） ──
     const handleLocalInstall = useCallback(async () => {
         try {
@@ -116,7 +143,9 @@ export default function PluginInstallModal({ close }: PluginInstallModalProps) {
                 'application/javascript',
                 'application/x-javascript',
             ];
-            const pluginFile = files.find((f) => validMimeTypes.includes(f.type));
+            const pluginFile = files.find(
+                (f) => validMimeTypes.includes(f.type) || f.name.toLowerCase().endsWith('.js'),
+            );
             if (!pluginFile) {
                 showToast(t('plugin.error_hint_plugin_should_end_with_js_or_json'), {
                     type: 'warn',
@@ -124,9 +153,14 @@ export default function PluginInstallModal({ close }: PluginInstallModalProps) {
                 return;
             }
             const realPath = fsUtil.getPathForFile(pluginFile);
-            await installFromPath(realPath);
+            if (realPath) {
+                await installFromPath(realPath);
+            } else {
+                // WebView2 拖拽的 File 没有磁盘路径，直接读取内容安装
+                await installFromCode(await pluginFile.text());
+            }
         },
-        [installFromPath, t],
+        [installFromPath, installFromCode, t],
     );
 
     // ── 网络安装 ──

@@ -24,6 +24,7 @@ import { store, pluginsAtom, pluginMetaAtom } from './store';
 interface IMod {
     callPluginMethod(params: ICallPluginMethodParams): Promise<any>;
     installPlugin(urlOrPath: string): Promise<{ success: boolean; message?: string }>;
+    installPluginFromCode?(code: string): Promise<{ success: boolean; message?: string }>;
     uninstallPlugin(hash: string): Promise<{ success: boolean; message?: string }>;
     updatePlugin(hash: string): Promise<{ success: boolean; message?: string }>;
     updateAllPlugins(): Promise<{ updated: number; failed: number }>;
@@ -108,6 +109,16 @@ async function callPluginMethod<
 /** 安装插件 */
 async function installPlugin(urlOrPath: string): Promise<{ success: boolean; message?: string }> {
     return mod.installPlugin(urlOrPath);
+}
+
+/** 以代码内容安装插件（WebView2 拖拽无真实路径时的通道；非 Tauri 环境返回失败） */
+async function installPluginFromCode(
+    code: string,
+): Promise<{ success: boolean; message?: string }> {
+    if (typeof mod.installPluginFromCode !== 'function') {
+        return { success: false, message: 'Not supported in current environment' };
+    }
+    return mod.installPluginFromCode(code);
 }
 
 /** 卸载插件 */
@@ -319,6 +330,7 @@ const pluginManager = {
     whenReady,
     callPluginMethod,
     installPlugin,
+    installPluginFromCode,
     uninstallPlugin,
     updatePlugin,
     updateAllPlugins,

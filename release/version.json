@@ -1,12 +1,17 @@
 {
-    "version": "1.0.19",
+    "version": "1.0.20",
     "changeLog": [
-        "修复 Tauri 版启动白屏问题：生产构建缺少 __DEV__ 编译期常量导致模块加载中断",
-        "新增启动早期错误兜底：启动异常时直接显示错误堆栈，不再静默白屏",
-        "消除 favicon 噪音请求"
+        "重构插件系统：安装、卸载、更新、搜索与音源获取在 Tauri 版完整可用（支持拖拽与代码安装）",
+        "修复主题功能：主题市场预览、策展主题安装、本地 .mftheme 安装与远程主题下载",
+        "恢复文件选择与保存对话框（插件安装、主题安装、备份恢复、扫描文件夹等场景）",
+        "新增本地播放请求代理：自动附加 Referer/Cookie 等请求头，修复部分音源无法播放与无法拖动进度",
+        "新增下载管理器：并发控制、断点续传、进度显示与暂停恢复",
+        "恢复歌单 / 收藏 / 播放队列的持久化与备份恢复（含 WebDAV 通道）",
+        "恢复本地音乐扫描与音频标签解析",
+        "修复检查更新异常导致的启动报错"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.19/AnhePlayer_1.0.19_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.19/AnhePlayer_1.0.19_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.20/AnhePlayer_1.0.20_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.20/AnhePlayer_1.0.20_x64_en-US.msi"
     ]
 }

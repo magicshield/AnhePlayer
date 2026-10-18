@@ -10,6 +10,7 @@ import { registerAppConfigBridge } from './bridges/appConfig';
 import { registerSystemUtilBridge } from './bridges/systemUtil';
 import { registerFsUtilBridge } from './bridges/fsUtil';
 import { registerCommonBridges } from './bridges/commonBridges';
+import { registerThemePackBridge } from './bridges/themepackBridge';
 import { registerDataBridges } from './bridges/dataBridges';
 import { registerTauriPluginManagerBridge } from './bridges/pluginManagerBridge';
 
@@ -24,6 +25,7 @@ export function injectBridgesSync(): void {
         registerSystemUtilBridge();
         registerFsUtilBridge();
         registerCommonBridges();
+        registerThemePackBridge();
         registerDataBridges();
         registerTauriPluginManagerBridge();
         console.log('[TauriBridge] Synchronously auto-injected all context bridges.');
