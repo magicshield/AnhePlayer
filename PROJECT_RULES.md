@@ -255,6 +255,7 @@ NODE_ENV=production npx electron-forge package
 1. CDP 驱动长流程（下载、轮询等）时，**页面内 `setTimeout` 在后台窗口会被 Chromium 节流**（约 1 分钟/跳），单条长表达式必然拖死；正确架构是「页面一步操作立即返回 + Node 侧轮询」（Node timer 不节流）。启动调试实例可加 `--disable-background-timer-throttling` 参数。
 2. 插件搜索桥 `callPluginMethod({ method: 'search', args: [kw, page, type] })` 的 type 必须用 UI 的 `SearchMediaType`（`music`/`album`/`artist`/`sheet`），传洛雪规范的 `song` 会命中 searcher 空分支，**静默返回空数组**而非报错。
 3. **remote origin 页面下 `fs_*` 系列自定义命令会被 ACL 直接拒绝**（报 `Command fs_read_file not allowed by ACL`），JsonFileStore 等容错层会静默降级为空数据——远程调试时「数据全空」优先怀疑 ACL 而非代码或路径（globalContext.appPath 等值本身正常）；数据类验证请在 tauri.localhost 页面进行，纯前端播放链路不受影响。
+4. **命令行/CDP 实验里传 Windows 路径禁止手打反斜杠**：bash→JSON→JS 多层转义会把 `\\` 降级为 `\`，而 JS 非法转义序列（如 `\椒`）会静默丢弃反斜杠，产生 `E:椒盐音乐` 这类无效路径（报 os error 3 / 判定不存在），排查时极易误判为「盘符/权限问题」。正确做法：用 `String.fromCharCode(92)` 拼反斜杠，或直接从数据源（JSON 数据）取路径。
 
 **适用范围**：所有 Tauri v2（WebView2）发布版的问题定位。
 
@@ -350,6 +351,22 @@ NODE_ENV=production npx electron-forge package
 **验证方式**：CDP 里 `new Audio(assetUrl)` 可 loadedmetadata；`fetch(proxyUrl(assetUrl))` 复现 502；播放后 `navigator.mediaSession.playbackState === 'playing'`。
 
 **适用范围**：所有 Tauri/WebView2 下的本地媒体播放与代理判断。
+
+---
+
+### 2.14 测试用例禁止调用「以输入集合为准做删除」的 API（本地库误清事故）
+
+**触发信号**：本地音乐库突然清空（local-music.json 变成空库），但磁盘文件完好。
+
+**根因/约束**：冒烟用例曾调用 `syncScanFolders([临时目录])`——该 API 语义是「以传入的文件夹集合为准做 diff」：不在集合里的既有文件夹及其全部曲目会被移除。当用户曲库已配置扫描文件夹时，用临时目录调用它 = 清空用户全部本地曲目记录。
+
+**正确做法**：
+1. 测试/脚本只用命令级原语（`local_scan_dir` / `local_parse_meta`），禁止调用会做「集合 diff 删除」的高层 API。
+2. 本地曲目 id = `hashPath(filePath)`（路径稳定哈希）：误清后重新 `syncScanFolders([原文件夹])` 即可恢复，且 **id 与恢复前一致**，歌单/收藏/最近播放的引用自动复原（实测 201 首全量恢复、抽样 id 一致）。
+
+**验证方式**：恢复后 `getAllMusicItems()` 数量与抽样 id 与事故前一致。
+
+**适用范围**：所有涉及用户数据的高层 API 的测试设计。
 
 ---
 
