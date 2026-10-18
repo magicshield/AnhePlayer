@@ -61,7 +61,8 @@ async fn download_cover(url: &str) -> Result<(Vec<u8>, MimeType), String> {
     if bytes.is_empty() {
         return Err("封面内容为空".to_string());
     }
-    Ok((bytes, guess_mime(&content_type, url, &bytes)))
+    let mime = guess_mime(&content_type, url, &bytes);
+    Ok((bytes, mime))
 }
 
 /// 推断封面 MIME：优先 Content-Type，其次魔数嗅探，最后按 URL 后缀兜底为 JPEG
