@@ -1,8 +1,8 @@
 mod commands;
 
 use commands::{
-    app_config::*, dialog::*, download::*, forwarder::*, fs_util::*, global_context::*,
-    http_proxy::*, local_meta::*, plugin_store::*, system_util::*, webdav::*,
+    app_config::*, audio_tag::*, dialog::*, download::*, forwarder::*, fs_util::*,
+    global_context::*, http_proxy::*, local_meta::*, plugin_store::*, system_util::*, webdav::*,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -58,6 +58,8 @@ pub fn run() {
             // Download
             download_file,
             download_cancel,
+            // Audio Tag（下载完成后写入封面/歌词）
+            write_audio_meta,
             // WebDAV
             webdav_test,
             webdav_put,

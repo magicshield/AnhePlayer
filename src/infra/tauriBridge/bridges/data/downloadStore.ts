@@ -9,11 +9,12 @@
  * - 世代号（taskGeneration）拦截 pause/remove 后的过时回调
  * - 进度事件：监听 Rust tauri-download-progress，按 200ms 节流批量转发
  *
- * 与 Electron 版差异：不嵌入封面/歌词（renderer 无 node-id3 能力）。
+ * - 标签写入：任务完成后异步调用 Rust write_audio_meta 嵌入封面与歌词（尽力而为，失败不阻断）
  */
 import { nanoid } from 'nanoid';
 import { QUALITY_KEYS, INTERNAL_SLIM_KEY } from '@common/constant';
 import sanitizeFileName from '@common/sanitizeFileName';
+import delay from '@common/delay';
 import { safeParse, safeStringify } from '@common/safeSerialize';
 import { CONTEXT_BRIDGE_KEY as PLUGIN_KEY } from '@infra/pluginManager/common/constant';
 import { CONTEXT_BRIDGE_KEY as APP_CONFIG_KEY } from '@infra/appConfig/common/constant';
@@ -29,7 +30,7 @@ import type { IAppConfig } from '@appTypes/infra/appConfig';
 import { JsonFileStore } from './jsonFile';
 import { mediaMetaStore } from './mediaMetaStore';
 import { musicSheetStore } from './musicSheetStore';
-import { joinPath } from './pathUtils';
+import { joinPath, extOf } from './pathUtils';
 import { getUserDataDir, isFile, removePath, renamePath } from './tauriFs';
 import { tauriInvoke, tauriListen } from '../../ipc';
 
@@ -48,6 +49,9 @@ const MIME_TO_EXT: Record<string, string> = {
     'audio/wav': '.wav',
     'audio/x-wav': '.wav',
 };
+
+/** 支持嵌入封面/歌词的扩展名（lofty 可写 picture 与歌词字段的容器格式） */
+const TAG_WRITE_EXTS = new Set(['.mp3', '.m4a', '.flac', '.ogg', '.opus']);
 
 interface IDownloadData {
     tasks: IDownloadTask[];
@@ -265,7 +269,9 @@ class DownloadStore {
         quality?: IMusic.IQualityKey;
     }): Promise<IDownloadTask[]> {
         const results = await Promise.allSettled(
-            params.musicItems.map((item) => this.addTask({ musicItem: item, quality: params.quality })),
+            params.musicItems.map((item) =>
+                this.addTask({ musicItem: item, quality: params.quality }),
+            ),
         );
         return results
             .filter((r): r is PromiseFulfilledResult<IDownloadTask> => r.status === 'fulfilled')
@@ -326,6 +332,46 @@ class DownloadStore {
         })) as IGetMediaSourceResult | null;
     }
 
+    /**
+     * 嵌入封面/歌词标签（对齐 Electron embedMetadata 语义）
+     * - 封面上抛 artwork URL，由 Rust 侧直接下载（http_request 仅支持文本，二进制走不了）；
+     *   封面取自 musicItem.artwork（网络 URL），歌词经插件适配器取 rawLrc
+     * - 失败仅告警，不影响已完成的下载
+     */
+    private async embedMetadata(
+        task: IDownloadTask,
+        musicItem: IMusic.IMusicItem | null,
+    ): Promise<void> {
+        try {
+            if (!musicItem || !task.filePath) return;
+            if (!TAG_WRITE_EXTS.has(extOf(task.filePath))) return;
+
+            let lyrics: string | null = null;
+            try {
+                const pluginMod = (window as any)[PLUGIN_KEY];
+                const lyricSource = await pluginMod?.getLyric?.(musicItem);
+                if (lyricSource?.rawLrc) lyrics = lyricSource.rawLrc as string;
+            } catch (err) {
+                console.warn('[download] 获取歌词失败:', err);
+            }
+
+            const coverUrl =
+                typeof musicItem.artwork === 'string' && /^https?:\/\//i.test(musicItem.artwork)
+                    ? musicItem.artwork
+                    : null;
+
+            if (!lyrics && !coverUrl) return;
+
+            await tauriInvoke('write_audio_meta', {
+                filePath: task.filePath,
+                coverUrl,
+                lyrics,
+            });
+        } catch (err) {
+            console.warn('[download] 写入封面/歌词标签失败:', err);
+        }
+    }
+
     private async runTask(task: IDownloadTask, generation: number): Promise<void> {
         await this.init();
         if (this.isStale(task.id, generation) || task.status !== 'pending') return;
@@ -343,18 +389,28 @@ class DownloadStore {
             }
         }
 
-        // 2. 延迟获取媒体源（任务真正开始执行时才请求）
+        // 2. 延迟获取媒体源（任务真正开始执行时才请求；失败自动重试一次，插件可能刚装好/处于瞬时空档）
+        let sourceError = '';
         if (musicItem && !task.mediaSource) {
-            try {
-                const source = await this.fetchMediaSource(musicItem, task.quality);
-                if (source?.url) {
-                    task.mediaSource = safeStringify(source);
-                    if (source.quality && source.quality !== task.quality) {
-                        task.quality = source.quality;
+            for (let attempt = 0; attempt < 2 && !task.mediaSource; attempt += 1) {
+                if (attempt > 0) await delay(800);
+                if (this.isStale(task.id, generation)) return;
+                try {
+                    const source = await this.fetchMediaSource(musicItem, task.quality);
+                    if (source?.url) {
+                        task.mediaSource = safeStringify(source);
+                        if (source.quality && source.quality !== task.quality) {
+                            task.quality = source.quality;
+                        }
+                    } else {
+                        sourceError = '插件未返回可用音源';
                     }
+                } catch (err: any) {
+                    sourceError = err?.message ?? String(err);
                 }
-            } catch {
-                /* mediaSource 仍为空 → 走下方兜底 */
+            }
+            if (sourceError) {
+                console.warn('[download] 获取歌曲源失败:', sourceError);
             }
         }
 
@@ -363,7 +419,7 @@ class DownloadStore {
         // 3. 无媒体源 → 标记错误
         if (!task.mediaSource) {
             task.status = 'error';
-            task.error = '无法获取歌曲源';
+            task.error = sourceError ? `无法获取歌曲源：${sourceError}` : '无法获取歌曲源';
             task.updatedAt = Date.now();
             this.file.scheduleSave();
             this.emitTaskEvent({ task: cloneTask(task), type: 'error' });
@@ -377,10 +433,11 @@ class DownloadStore {
         this.emitTaskEvent({ task: cloneTask(task), type: 'status-changed' });
 
         const baseFilePath = task.filePath ?? '';
-        const source =
-            safeParse<{ url: string; headers?: Record<string, string>; userAgent?: string }>(
-                task.mediaSource,
-            ) ?? { url: '' };
+        const source = safeParse<{
+            url: string;
+            headers?: Record<string, string>;
+            userAgent?: string;
+        }>(task.mediaSource) ?? { url: '' };
 
         const headers: Record<string, string> = { ...(source.headers ?? {}) };
         if (source.userAgent) headers['User-Agent'] = source.userAgent;
@@ -408,7 +465,11 @@ class DownloadStore {
             task.filePath = finalPath;
 
             // 6. 原子收尾
-            await this.completeDownload(task, musicItem, baseFilePath);
+            const completed = await this.completeDownload(task, musicItem, baseFilePath);
+            // 7. 嵌入封面/歌词标签（尽力而为，不阻断任务完成）
+            if (completed) {
+                void this.embedMetadata(task, musicItem);
+            }
         } catch (err: any) {
             const message = err?.message ?? String(err);
             // 用户取消（pause/remove/retry 已处理状态），静默退出
@@ -427,7 +488,7 @@ class DownloadStore {
         task: IDownloadTask,
         musicItem: IMusic.IMusicItem | null,
         baseFilePath: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
         const data = await this.init();
         task.status = 'completed';
         task.updatedAt = Date.now();
@@ -447,6 +508,7 @@ class DownloadStore {
             data.tasks = data.tasks.filter((t) => t.id !== task.id);
             this.file.scheduleSave();
             this.emitTaskEvent({ task: cloneTask(task), type: 'completed' });
+            return true;
         } catch (err: any) {
             // 收尾失败：清理已 rename 的孤立文件 + 恢复原始路径供重试
             if (task.filePath) await removePath(task.filePath);
@@ -456,6 +518,7 @@ class DownloadStore {
             task.updatedAt = Date.now();
             this.file.scheduleSave();
             this.emitTaskEvent({ task: cloneTask(task), type: 'error' });
+            return false;
         }
     }
 

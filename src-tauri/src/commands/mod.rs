@@ -1,4 +1,5 @@
 pub mod app_config;
+pub mod audio_tag;
 pub mod dialog;
 pub mod download;
 pub mod forwarder;
