@@ -1,13 +1,8 @@
 name: Tauri Build & Release
 
 on:
+  # 发版仅由推标签触发；dispatch 只做验证构建，不再保留易误发的 release 开关
   workflow_dispatch:
-    inputs:
-      release:
-        description: 'Publish GitHub Release if checked'
-        required: false
-        type: boolean
-        default: false
   push:
     tags:
       - 'v*'
@@ -88,17 +83,18 @@ jobs:
           if-no-files-found: warn
 
       - name: Generate release notes from version.json
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == true
+        if: startsWith(github.ref, 'refs/tags/v')
         run: node ./scripts/gen-release-notes.mjs
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == true
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'v1.0.17' }}
-          name: ${{ startsWith(github.ref, 'refs/tags/v') && format('AnhePlayer {0}', github.ref_name) || 'AnhePlayer v1.0.17' }}
+          # 标签构建下 ref_name 即版本标签，不再回退到旧版本号误发
+          tag_name: ${{ github.ref_name }}
+          name: ${{ format('AnhePlayer {0}', github.ref_name) }}
           body_path: ./release-notes.md
           draft: false
           prerelease: false
