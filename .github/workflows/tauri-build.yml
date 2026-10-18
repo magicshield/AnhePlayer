@@ -68,8 +68,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'AnhePlayer ${{ github.ref_name }}'
+          # 仅标签构建创建 Release；dispatch 构建只出 artifact，避免误建 master 标签/发布
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: ${{ startsWith(github.ref, 'refs/tags/') && format('AnhePlayer {0}', github.ref_name) || '' }}
           releaseBody: 'AnhePlayer Tauri v2 Release'
           releaseDraft: false
           prerelease: false
