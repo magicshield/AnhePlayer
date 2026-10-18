@@ -1,0 +1,60 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2.0/crates/tauri-config-schema/schema.json",
+  "productName": "AnhePlayer",
+  "version": "1.0.16",
+  "identifier": "com.anhe.player",
+  "build": {
+    "beforeDevCommand": "pnpm dev:tauri-prepare",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm build:tauri-prepare",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "label": "main",
+        "title": "AnhePlayer",
+        "url": "/mainWindow.html",
+        "width": 1020,
+        "height": 690,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": false,
+        "transparent": false,
+        "resizable": true,
+        "center": true
+      },
+      {
+        "label": "lyric",
+        "title": "Anhe Lyric",
+        "url": "/lyricWindow.html",
+        "width": 800,
+        "height": 160,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "resizable": true
+      },
+      {
+        "label": "minimode",
+        "title": "Anhe Mini",
+        "url": "/minimodeWindow.html",
+        "width": 320,
+        "height": 480,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "visible": false,
+        "resizable": false
+      }
+    ]
+  },
+  "plugins": {
+    "opener": {}
+  }
+}

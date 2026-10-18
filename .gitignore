@@ -97,3 +97,5 @@ dist-deb/
 *.AppImage
 nvm-setup.exe
 changqing_chajian.js
+src-tauri/target/
+

@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router';
 
 import bootstrapMainWindow from '../bootstrap/mainWindow';
 import router from './router';
+import { initTauriBridges } from '@infra/tauriBridge';
 
 document.body.dataset.window = 'main';
 
@@ -14,10 +15,13 @@ if (!container) {
 
 const root = createRoot(container);
 
-bootstrapMainWindow().then(() => {
-    root.render(
-        <React.StrictMode>
-            <RouterProvider router={router} />
-        </React.StrictMode>,
-    );
-});
+initTauriBridges()
+    .then(() => bootstrapMainWindow())
+    .then(() => {
+        root.render(
+            <React.StrictMode>
+                <RouterProvider router={router} />
+            </React.StrictMode>,
+        );
+    });
+
