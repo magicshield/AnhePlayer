@@ -23,16 +23,17 @@ export function DownloadSection() {
     const [concurrency, setConcurrency] = useConfigValue('download.concurrency');
     const [filenameFormat, setFilenameFormat] = useConfigValue('download.filenameFormat');
 
+    const effectiveDownloadPath = downloadPath || window.globalContext.appPath.defaultDownloadPath;
+
     const handleChoosePath = useCallback(async () => {
         const result = await systemUtil.showOpenDialog({
             properties: ['openDirectory'],
+            defaultPath: effectiveDownloadPath,
         });
         if (!result.canceled && result.filePaths[0]) {
             setDownloadPath(result.filePaths[0]);
         }
-    }, [setDownloadPath]);
-
-    const effectiveDownloadPath = downloadPath || window.globalContext.appPath.defaultDownloadPath;
+    }, [effectiveDownloadPath, setDownloadPath]);
 
     const handleOpenPath = useCallback(() => {
         systemUtil.openPath(effectiveDownloadPath);

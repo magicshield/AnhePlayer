@@ -86,16 +86,20 @@ pub async fn show_open_dialog(
         if multi {
             builder
                 .blocking_pick_folders()
-                .map(|folders| folders.into_iter().map(|f| f.to_string()).collect())
+                .map(|folders| folders.into_iter().map(|f| f.simplified().to_string()).collect())
         } else {
-            builder.blocking_pick_folder().map(|f| vec![f.to_string()])
+            builder
+                .blocking_pick_folder()
+                .map(|f| vec![f.simplified().to_string()])
         }
     } else if multi {
         builder
             .blocking_pick_files()
-            .map(|files| files.into_iter().map(|f| f.to_string()).collect())
+            .map(|files| files.into_iter().map(|f| f.simplified().to_string()).collect())
     } else {
-        builder.blocking_pick_file().map(|f| vec![f.to_string()])
+        builder
+            .blocking_pick_file()
+            .map(|f| vec![f.simplified().to_string()])
     };
 
     Ok(picked.filter(|paths| !paths.is_empty()))
@@ -150,5 +154,7 @@ pub async fn show_save_dialog(
         }
     }
 
-    Ok(builder.blocking_save_file().map(|f| f.to_string()))
+    Ok(builder
+        .blocking_save_file()
+        .map(|f| f.simplified().to_string()))
 }

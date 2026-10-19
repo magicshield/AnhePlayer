@@ -30,8 +30,8 @@ import type { IAppConfig } from '@appTypes/infra/appConfig';
 import { JsonFileStore } from './jsonFile';
 import { mediaMetaStore } from './mediaMetaStore';
 import { musicSheetStore } from './musicSheetStore';
-import { joinPath, extOf } from './pathUtils';
-import { getUserDataDir, isFile, removePath, renamePath } from './tauriFs';
+import { joinPath, extOf, dirnameOf } from './pathUtils';
+import { getUserDataDir, isFile, removePath, renamePath, ensureDir } from './tauriFs';
 import { tauriInvoke, tauriListen } from '../../ipc';
 
 /** MIME → 文件扩展名映射（对齐 downloadTask.ts） */
@@ -443,6 +443,12 @@ class DownloadStore {
         if (source.userAgent) headers['User-Agent'] = source.userAgent;
 
         try {
+            // 确保下载目录存在
+            const parentDir = dirnameOf(task.tempPath!);
+            if (parentDir) {
+                await ensureDir(parentDir);
+            }
+
             const result = await tauriInvoke<{
                 contentType: string | null;
                 downloadedBytes: number;

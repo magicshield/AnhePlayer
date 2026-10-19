@@ -86,6 +86,10 @@ pub fn open_external(url: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn open_path(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        let _ = std::fs::create_dir_all(p);
+    }
     open::that(path).map_err(|e| e.to_string())
 }
 
@@ -95,7 +99,7 @@ pub fn show_item_in_folder(path: String) -> Result<bool, String> {
     {
         use std::process::Command;
         Command::new("explorer")
-            .args(["/select,", &path])
+            .arg(format!("/select,{}", path))
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(true)

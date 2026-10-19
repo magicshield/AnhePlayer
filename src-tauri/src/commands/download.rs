@@ -141,6 +141,13 @@ async fn download_inner(
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
+    // 确保目标下载目录存在（无论是否更改过下载路径）
+    if let Some(parent) = std::path::Path::new(path).parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("Failed to create download directory: {}", e))?;
+    }
+
     // 打开写入句柄：续传 → append；不支持 Range → 从头（truncate）
     let mut options = tokio::fs::OpenOptions::new();
     options.create(true).write(true);
