@@ -16,6 +16,9 @@ pub fn minimize_window(window: WebviewWindow, skip_task_bar: Option<bool>) {
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        // 关闭到托盘时窗口可能被最小化并隐藏任务栏按钮，恢复显示时一并还原
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }

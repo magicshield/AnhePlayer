@@ -5,6 +5,39 @@ use commands::{
     global_context::*, http_proxy::*, local_meta::*, netease::*, plugin_store::*, system_util::*,
     webdav::*,
 };
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    AppHandle, Manager, WindowEvent,
+};
+
+/// 从配置文件读取关闭行为（与 Electron 端 `normal.closeBehavior` 保持一致）
+fn read_close_behavior() -> String {
+    let path = dirs::config_dir()
+        .map(|d| d.join("AnhePlayer").join("app-config.json"))
+        .unwrap_or_default();
+    let Ok(content) = std::fs::read_to_string(path) else {
+        return "minimize".to_string();
+    };
+    let Ok(config) = serde_json::from_str::<serde_json::Value>(&content) else {
+        return "minimize".to_string();
+    };
+    config
+        .get("normal.closeBehavior")
+        .and_then(|v| v.as_str())
+        .unwrap_or("minimize")
+        .to_string()
+}
+
+/// 显示并聚焦主窗口；同时恢复任务栏按钮（关闭到托盘时曾被隐藏）
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_skip_taskbar(false);
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -79,7 +112,56 @@ pub fn run() {
         ])
         .setup(|app| {
             commands::forwarder::init_forwarder(app.handle().clone());
+
+            // ── 系统托盘 ──
+            // 关闭按钮在「最小化」模式下只会隐藏窗口，必须提供托盘入口将其找回。
+            let show_item = MenuItem::with_id(app, "tray-show", "显示主窗口", true, None::<&str>)?;
+            let exit_item = MenuItem::with_id(app, "tray-exit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_item, &exit_item])?;
+
+            let mut tray_builder = TrayIconBuilder::with_id("main-tray")
+                .menu(&menu)
+                // 左键单击恢复窗口，右键才弹出菜单
+                .show_menu_on_left_click(false)
+                .tooltip("AnhePlayer")
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "tray-show" => show_main_window(app),
+                    "tray-exit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        show_main_window(tray.app_handle());
+                    }
+                });
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+            tray_builder.build(app)?;
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // 主窗口关闭请求：按配置决定「退出」还是「隐藏到托盘」，
+            // 避免窗口被销毁后进程与音频仍在后台运行却无法找回。
+            if window.label() != "main" {
+                return;
+            }
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if read_close_behavior() == "exit_app" {
+                    window.app_handle().exit(0);
+                    return;
+                }
+                api.prevent_close();
+                let _ = window.hide();
+                let _ = window.set_skip_taskbar(true);
+            }
         })
         .run(tauri::generate_context!())
         .expect("error while running anhe-player tauri application");
