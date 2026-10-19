@@ -1,11 +1,12 @@
 {
-    "version": "1.0.22",
+    "version": "1.0.23",
     "changeLog": [
-        "修复本地歌曲与已下载歌曲无法播放（本地音源不再被错误送入请求代理）",
-        "恢复「导入歌单」入口：侧边栏「创建的歌单」区支持导入各平台歌单"
+        "新增「网易云推荐」页：登录网易云账号后可收听私人雷达与每日推荐",
+        "登录网易云后，网易云歌曲优先使用官方音源，歌词缺失时自动补充官方歌词",
+        "修复更改下载路径后下载失败，以及下载目录未自动创建的问题"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.22/AnhePlayer_1.0.22_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.22/AnhePlayer_1.0.22_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.23/AnhePlayer_1.0.23_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.23/AnhePlayer_1.0.23_x64_en-US.msi"
     ]
 }
