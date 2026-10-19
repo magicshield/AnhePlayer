@@ -6,7 +6,7 @@
         "保留歌曲搜索、播放、收藏、下载和加入歌单等操作"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer-1.0.25-win32-x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer-1.0.25-win32-x64-portable.zip"
     ]
 }
