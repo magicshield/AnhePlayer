@@ -1,12 +1,12 @@
 {
-    "version": "1.0.25",
+    "version": "1.0.26",
     "changeLog": [
-        "网易云推荐页新增「私人漫游」Tab，支持加载个性化连续推荐歌曲",
-        "新增私人漫游数据链路，兼容 Electron 与 Tauri 运行环境",
-        "保留歌曲搜索、播放、收藏、下载和加入歌单等操作"
+        "修复关闭到托盘后窗口无法找回、进程与音频仍在后台运行的问题",
+        "新增系统托盘图标与菜单，支持显示主窗口和彻底退出",
+        "系统级关闭（Alt+F4）同样按关闭行为配置隐藏到托盘"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.26/AnhePlayer_1.0.26_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.26/AnhePlayer_1.0.26_x64_en-US.msi"
     ]
 }
