@@ -203,6 +203,28 @@ export function createNeteaseCore(transport: INeteaseTransport) {
         if (result.code !== 200 || !result.data?.dailySongs) return [];
         return result.data.dailySongs.map(mapSong);
     }
+
+    async function getPrivateFmSongs(): Promise<IMusic.IMusicItem[]> {
+        const result = await weapi<{
+            code?: number;
+            data?: RawSong[] | { songs?: RawSong[] };
+        }>('/weapi/v1/radio/get', {
+            offset: 0,
+            total: true,
+            limit: 30,
+        });
+        if (result.code !== 200) return [];
+
+        // 不同网易云客户端版本的私人漫游响应可能直接返回数组，或包在 data.songs 中。
+        const data = Array.isArray(result.data)
+            ? result.data
+            : (result.data?.songs ?? (result as { songs?: RawSong[] }).songs ?? []);
+        return data.map((item) => {
+            const song = item.songInfo ?? item.song ?? item;
+            return mapSong(song);
+        });
+    }
+
     async function getPrivateRadarSongs(): Promise<INeteaseRadarResult> {
         let radar: RawPlaylistBrief | undefined;
 
@@ -333,6 +355,7 @@ export function createNeteaseCore(transport: INeteaseTransport) {
     return {
         getProfile,
         getDailyRecommendSongs,
+        getPrivateFmSongs,
         getPrivateRadarSongs,
         getMusicUrl,
         getLyric,

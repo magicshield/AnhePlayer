@@ -53,6 +53,10 @@ class NeteaseAccount {
             return neteaseCore.getDailyRecommendSongs();
         });
 
+        ipcMain.handle(IPC.GET_PRIVATE_FM_SONGS, async () => {
+            return neteaseCore.getPrivateFmSongs();
+        });
+
         ipcMain.handle(IPC.GET_PRIVATE_RADAR_SONGS, async () => {
             return neteaseCore.getPrivateRadarSongs();
         });

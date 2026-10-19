@@ -34,6 +34,11 @@ class NeteaseAccountRenderer {
         return mod.getDailyRecommendSongs();
     }
 
+    public async getPrivateFmSongs(): Promise<IMusic.IMusicItem[]> {
+        if (!mod) return [];
+        return mod.getPrivateFmSongs();
+    }
+
     public async getPrivateRadarSongs(): Promise<INeteaseRadarResult> {
         if (!mod) return { songs: [] };
         return mod.getPrivateRadarSongs();

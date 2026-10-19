@@ -8,7 +8,7 @@ import {
     type MouseEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Radio, Sparkles, User, RotateCw, LogOut, LogIn, FolderPlus } from 'lucide-react';
+import { Radio, Sparkles, Waves, User, RotateCw, LogOut, LogIn, FolderPlus } from 'lucide-react';
 import { RequestStatus } from '@common/constant';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import neteaseAccount, { useNeteaseAccountStatus } from '@infra/neteaseAccount/renderer';
@@ -24,7 +24,7 @@ import { showModal } from '../../components/ui/Modal/modalManager';
 import { showToast } from '../../components/ui/Toast';
 import './index.scss';
 
-type TabKey = 'radar' | 'daily';
+type TabKey = 'radar' | 'daily' | 'fm';
 
 interface RadarMeta {
     title?: string;
@@ -40,6 +40,7 @@ export default function NeteaseRecommendPage() {
     const [radarSongs, setRadarSongs] = useState<IMusic.IMusicItem[]>([]);
     const [radarMeta, setRadarMeta] = useState<RadarMeta>({});
     const [dailySongs, setDailySongs] = useState<IMusic.IMusicItem[]>([]);
+    const [fmSongs, setFmSongs] = useState<IMusic.IMusicItem[]>([]);
     const [requestStatus, setRequestStatus] = useState<RequestStatus>(RequestStatus.Idle);
     const [searchValue, setSearchValue] = useState('');
     const deferredSearch = useDeferredValue(searchValue);
@@ -59,11 +60,17 @@ export default function NeteaseRecommendPage() {
                 label: t('netease.daily'),
                 icon: <Sparkles size={16} />,
             },
+            {
+                key: 'fm',
+                label: t('netease.fm'),
+                icon: <Waves size={16} />,
+            },
         ],
         [t],
     );
 
-    const currentSongs = activeTab === 'radar' ? radarSongs : dailySongs;
+    const currentSongs =
+        activeTab === 'radar' ? radarSongs : activeTab === 'daily' ? dailySongs : fmSongs;
 
     const filteredSongs = useMemo(() => {
         const keyword = deferredSearch.trim().toLowerCase();
@@ -92,10 +99,14 @@ export default function NeteaseRecommendPage() {
                         description: radarResult.description,
                         isFallback: radarResult.isFallback,
                     });
-                } else {
+                } else if (tab === 'daily') {
                     const songs = await neteaseAccount.getDailyRecommendSongs();
                     if (seq !== requestSeqRef.current) return;
                     setDailySongs(songs);
+                } else {
+                    const songs = await neteaseAccount.getPrivateFmSongs();
+                    if (seq !== requestSeqRef.current) return;
+                    setFmSongs(songs);
                 }
                 setRequestStatus(RequestStatus.Done);
             } catch {
@@ -114,6 +125,7 @@ export default function NeteaseRecommendPage() {
             requestSeqRef.current++;
             setRadarSongs([]);
             setDailySongs([]);
+            setFmSongs([]);
             setRequestStatus(RequestStatus.Idle);
         }
     }, [accountStatus.connected, activeTab, fetchData]);
@@ -286,12 +298,16 @@ export default function NeteaseRecommendPage() {
                             <span className="p-netease-recommend__meta-title">
                                 {activeTab === 'radar'
                                     ? radarTitle
-                                    : t('netease.daily_recommend_title')}
+                                    : activeTab === 'daily'
+                                      ? t('netease.daily_recommend_title')
+                                      : t('netease.fm_title')}
                             </span>
                             <span>
                                 {activeTab === 'radar'
                                     ? radarDescription
-                                    : t('netease.daily_recommend_desc')}
+                                    : activeTab === 'daily'
+                                      ? t('netease.daily_recommend_desc')
+                                      : t('netease.fm_desc')}
                             </span>
                         </div>
                         <span>{t('netease.total_count', { count: currentSongs.length })}</span>

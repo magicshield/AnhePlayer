@@ -1,11 +1,12 @@
 {
-    "version": "1.0.24",
+    "version": "1.0.25",
     "changeLog": [
-        "修复「网易云推荐」页只显示前十来首歌，私人雷达与每日推荐现可完整显示全部歌曲",
-        "修复「网易云推荐」页歌曲数量位置显示为代码文本的问题"
+        "网易云推荐页新增「私人漫游」Tab，支持加载个性化连续推荐歌曲",
+        "新增私人漫游数据链路，兼容 Electron 与 Tauri 运行环境",
+        "保留歌曲搜索、播放、收藏、下载和加入歌单等操作"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.24/AnhePlayer_1.0.24_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.24/AnhePlayer_1.0.24_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.25/AnhePlayer_1.0.25_x64_en-US.msi"
     ]
 }

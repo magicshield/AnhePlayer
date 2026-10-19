@@ -122,6 +122,7 @@ export function registerNeteaseAccountBridge(): void {
         },
 
         getDailyRecommendSongs: () => core.getDailyRecommendSongs(),
+        getPrivateFmSongs: () => core.getPrivateFmSongs(),
         getPrivateRadarSongs: () => core.getPrivateRadarSongs(),
         getMusicUrl: (songId, quality) => core.getMusicUrl(songId, quality),
         getLyric: (songId) => core.getLyric(songId),

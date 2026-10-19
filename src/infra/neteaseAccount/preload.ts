@@ -11,6 +11,8 @@ const mod: INeteaseAccountBridge = {
 
     getDailyRecommendSongs: () => ipcRenderer.invoke(IPC.GET_DAILY_RECOMMEND_SONGS),
 
+    getPrivateFmSongs: () => ipcRenderer.invoke(IPC.GET_PRIVATE_FM_SONGS),
+
     getPrivateRadarSongs: () => ipcRenderer.invoke(IPC.GET_PRIVATE_RADAR_SONGS),
 
     getMusicUrl: (songId, quality) => ipcRenderer.invoke(IPC.GET_MUSIC_URL, { songId, quality }),

@@ -41,6 +41,7 @@ export interface INeteaseAccountBridge {
     openLogin(): Promise<'connected' | 'cancelled'>;
     logout(): Promise<boolean>;
     getDailyRecommendSongs(): Promise<IMusic.IMusicItem[]>;
+    getPrivateFmSongs(): Promise<IMusic.IMusicItem[]>;
     getPrivateRadarSongs(): Promise<INeteaseRadarResult>;
     getMusicUrl(songId: string, quality?: IMusic.IQualityKey): Promise<INeteaseMediaSource | null>;
     getLyric(songId: string): Promise<INeteaseLyricResult | null>;

@@ -3,6 +3,7 @@ export const IPC = {
     OPEN_LOGIN: '@infra/netease-account/open-login',
     LOGOUT: '@infra/netease-account/logout',
     GET_DAILY_RECOMMEND_SONGS: '@infra/netease-account/get-daily-recommend-songs',
+    GET_PRIVATE_FM_SONGS: '@infra/netease-account/get-private-fm-songs',
     GET_PRIVATE_RADAR_SONGS: '@infra/netease-account/get-private-radar-songs',
     GET_MUSIC_URL: '@infra/netease-account/get-music-url',
     GET_LYRIC: '@infra/netease-account/get-lyric',
