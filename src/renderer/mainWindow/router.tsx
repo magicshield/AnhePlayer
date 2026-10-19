@@ -7,6 +7,7 @@ import SearchPage from './pages/SearchPage';
 import ToplistPage from './pages/ToplistPage';
 import ToplistDetailPage from './pages/ToplistDetailPage';
 import RecommendSheetsPage from './pages/RecommendSheetsPage';
+import NeteaseRecommendPage from './pages/NeteaseRecommendPage';
 import LocalSheetPage from './pages/LocalSheetPage';
 import SheetPage from './pages/SheetPage';
 import AlbumPage from './pages/AlbumPage';
@@ -48,6 +49,10 @@ const router = createHashRouter([
             {
                 path: RoutePaths.RecommendSheets,
                 Component: RecommendSheetsPage,
+            },
+            {
+                path: RoutePaths.NeteaseRecommend,
+                Component: NeteaseRecommendPage,
             },
 
             // ── 详情页 ──

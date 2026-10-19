@@ -15,3 +15,4 @@ import '@infra/mediaMeta/preload';
 import '@infra/downloadManager/preload';
 import '@infra/localMusic/preload';
 import '@infra/backup/preload';
+import '@infra/neteaseAccount/preload';

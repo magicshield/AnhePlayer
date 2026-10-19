@@ -594,5 +594,25 @@
         "empty_title": "暫無播放記錄",
         "empty_desc": "你播放的歌曲會出現在這裡",
         "remove": "從最近播放移除"
+    },
+    "netease": {
+        "nav_title": "網易雲推薦",
+        "radar": "私人雷達",
+        "daily": "每日推薦",
+        "login": "登入網易雲",
+        "login_btn": "立即登入",
+        "logout": "登出",
+        "connected_status": "已連線",
+        "login_tip_title": "網易雲音樂專屬推薦",
+        "login_tip_desc": "登入網易雲帳號，同步聽歌偏好，暢享私人雷達與每日歌曲推薦",
+        "empty_guide": "登入網易雲音樂帳號後即可收聽專屬私人雷達與每日推薦歌曲",
+        "radar_desc": "猜你喜歡，私人客製推薦",
+        "daily_recommend_title": "每日歌曲推薦",
+        "daily_recommend_desc": "根據你的音樂偏好每日 6:00 更新",
+        "default_nickname": "網易雲音樂用戶",
+        "radar_fallback_title": "私人推薦（每日推薦）",
+        "radar_fallback_desc": "未找到獨立雷達歌單，已為你展示個人化每日推薦歌曲",
+        "login_failed": "開啟網易雲登入失敗，請稍後重試",
+        "logout_failed": "登出網易雲失敗，請稍後重試"
     }
 }

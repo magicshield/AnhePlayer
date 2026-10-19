@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import {
     Clock,
     Flame,
+    Radio,
     Trophy,
     HardDrive,
     Download,
@@ -80,6 +81,13 @@ export default function Sidebar() {
                         route={RoutePaths.RecommendSheets}
                         icon={Flame}
                         text={t('playlist.recommend')}
+                        activeSegment={activeSegment}
+                        navigate={navigate}
+                    />
+                    <NavItem
+                        route={RoutePaths.NeteaseRecommend}
+                        icon={Radio}
+                        text={t('netease.nav_title')}
                         activeSegment={activeSegment}
                         navigate={navigate}
                     />

@@ -594,5 +594,25 @@
         "empty_title": "暂无播放记录",
         "empty_desc": "你播放的歌曲会出现在这里",
         "remove": "从最近播放移除"
+    },
+    "netease": {
+        "nav_title": "网易云推荐",
+        "radar": "私人雷达",
+        "daily": "每日推荐",
+        "login": "登录网易云",
+        "login_btn": "立即登录",
+        "logout": "退出登录",
+        "connected_status": "已连接",
+        "login_tip_title": "网易云音乐专属推荐",
+        "login_tip_desc": "登录网易云账号，同步听歌偏好，畅享私人雷达与每日歌曲推荐",
+        "empty_guide": "登录网易云音乐账号后即可收听专属私人雷达和每日推荐歌曲",
+        "radar_desc": "猜你喜欢，私人订制推荐",
+        "daily_recommend_title": "每日歌曲推荐",
+        "daily_recommend_desc": "根据你的音乐偏好每日 6:00 更新",
+        "default_nickname": "网易云音乐用户",
+        "radar_fallback_title": "私人推荐（每日推荐）",
+        "radar_fallback_desc": "未找到独立雷达歌单，已为你展示个性化每日推荐歌曲",
+        "login_failed": "打开网易云登录失败，请稍后重试",
+        "logout_failed": "退出网易云登录失败，请稍后重试"
     }
 }

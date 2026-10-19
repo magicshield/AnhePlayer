@@ -13,6 +13,8 @@ export const RoutePaths = {
     ToplistDetail: 'toplist-detail',
     /** 热门歌单推荐 */
     RecommendSheets: 'recommend-sheets',
+    /** 网易云推荐（私人雷达 / 每日推荐） */
+    NeteaseRecommend: 'netease-recommend',
     /** 搜索 — 需 :query */
     Search: 'search',
     /** 歌单详情（远程） — 需 :platform/:id */

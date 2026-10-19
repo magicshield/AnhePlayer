@@ -2,7 +2,8 @@ mod commands;
 
 use commands::{
     app_config::*, audio_tag::*, dialog::*, download::*, forwarder::*, fs_util::*,
-    global_context::*, http_proxy::*, local_meta::*, plugin_store::*, system_util::*, webdav::*,
+    global_context::*, http_proxy::*, local_meta::*, netease::*, plugin_store::*, system_util::*,
+    webdav::*,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -68,6 +69,13 @@ pub fn run() {
             plugin_save,
             plugin_delete,
             plugin_load_all,
+            // NetEase Account（登录窗口与带 Cookie 请求）
+            netease_login_open,
+            netease_login_wait,
+            netease_login_close,
+            netease_session,
+            netease_request,
+            netease_logout,
         ])
         .setup(|app| {
             commands::forwarder::init_forwarder(app.handle().clone());

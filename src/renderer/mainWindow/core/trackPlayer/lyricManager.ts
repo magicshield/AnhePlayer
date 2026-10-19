@@ -8,6 +8,7 @@ import LyricParser from '@common/lyricParser';
 import { compositeKey } from '@common/mediaKey';
 import pluginManager from '@infra/pluginManager/renderer';
 import mediaMeta from '@infra/mediaMeta/renderer';
+import neteaseAccount from '@infra/neteaseAccount/renderer';
 import { store, currentLyricAtom, progressAtom, associatedLyricAtom } from './store';
 
 /** 歌词偏移写入 mediaMeta 的防抖延迟（ms） */
@@ -37,7 +38,22 @@ class LyricManager {
         store.set(associatedLyricAtom, meta?.associatedLyric?.musicItem ?? null);
 
         try {
-            const lyricSource = await pluginManager.adapters.getLyric(musicItem);
+            let lyricSource = await pluginManager.adapters.getLyric(musicItem);
+
+            // 若插件未获取到歌词且属于网易云平台，尝试从网易云接口获取官方歌词
+            if (!lyricSource?.rawLrc && !lyricSource?.lrc && musicItem.platform === 'wy') {
+                try {
+                    const officialLyric = await neteaseAccount.getLyric(String(musicItem.id));
+                    if (officialLyric?.rawLrc) {
+                        lyricSource = {
+                            rawLrc: officialLyric.rawLrc,
+                            translation: officialLyric.translation,
+                        };
+                    }
+                } catch {
+                    // ignore
+                }
+            }
 
             // 切歌了，丢弃旧结果
             if (this.currentMusicKey !== key) return;

@@ -13,6 +13,7 @@ import { registerCommonBridges } from './bridges/commonBridges';
 import { registerThemePackBridge } from './bridges/themepackBridge';
 import { registerDataBridges } from './bridges/dataBridges';
 import { registerTauriPluginManagerBridge } from './bridges/pluginManagerBridge';
+import { registerNeteaseAccountBridge } from './bridges/neteaseAccountBridge';
 
 export function injectBridgesSync(): void {
     if (!isTauriEnvironment()) {
@@ -28,6 +29,7 @@ export function injectBridgesSync(): void {
         registerThemePackBridge();
         registerDataBridges();
         registerTauriPluginManagerBridge();
+        registerNeteaseAccountBridge();
         console.log('[TauriBridge] Synchronously auto-injected all context bridges.');
     } catch (err) {
         console.error('[TauriBridge] Failed to synchronously inject bridges:', err);

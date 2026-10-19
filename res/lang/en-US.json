@@ -594,5 +594,25 @@
         "empty_title": "No Play History",
         "empty_desc": "Songs you play will appear here",
         "remove": "Remove from Recently Played"
+    },
+    "netease": {
+        "nav_title": "NetEase Recommend",
+        "radar": "Private Radar",
+        "daily": "Daily Recommend",
+        "login": "Login NetEase",
+        "login_btn": "Login Now",
+        "logout": "Logout",
+        "connected_status": "Connected",
+        "login_tip_title": "NetEase Cloud Music Recommendation",
+        "login_tip_desc": "Log in to your NetEase account to enjoy personalized Private Radar and Daily Recommendations",
+        "empty_guide": "Please log in to your NetEase account to view your Private Radar and Daily Recommendations",
+        "radar_desc": "Personalized radar tailored to your taste",
+        "daily_recommend_title": "Daily Song Recommendations",
+        "daily_recommend_desc": "Updated daily at 06:00 according to your music taste",
+        "default_nickname": "NetEase Music User",
+        "radar_fallback_title": "Personal Picks (Daily Recommend)",
+        "radar_fallback_desc": "No Private Radar playlist found, showing your personalized daily recommendations instead",
+        "login_failed": "Failed to open NetEase login, please try again later",
+        "logout_failed": "Failed to log out of NetEase, please try again later"
     }
 }

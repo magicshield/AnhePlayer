@@ -19,6 +19,7 @@ import mediaMeta from '@infra/mediaMeta/main';
 import downloadManager from '@infra/downloadManager/main';
 import localMusic from '@infra/localMusic/main';
 import backup from '@infra/backup/main';
+import neteaseAccount from '@infra/neteaseAccount/main';
 import appTray from '@main/core/appTray';
 import appThumbar from '@main/core/appThumbar';
 import proxyManager from '@main/core/proxyManager';
@@ -150,6 +151,8 @@ async function bootstrapInfra(windowManager: IWindowManager) {
         appConfig,
         backupProvider: musicSheet.getBackupProvider(),
     });
+
+    neteaseAccount.setup({ windowManager });
 
     // 注册内建插件
     pluginManager.registerBuiltinPlugin(localPluginDefine, LOCAL_PLUGIN_HASH);

@@ -15,6 +15,7 @@ import pluginManager from '@infra/pluginManager/renderer';
 import appConfig from '@infra/appConfig/renderer';
 import downloadManager from '@infra/downloadManager/renderer';
 import fsUtil from '@infra/fsUtil/renderer';
+import neteaseAccount from '@infra/neteaseAccount/renderer';
 import { addToRecentlyPlayed } from '../recentlyPlayed';
 import appSync from '@infra/appSync/renderer/main';
 import { syncKV } from '@renderer/common/kvStore';
@@ -165,14 +166,7 @@ class TrackPlayer {
                 // 优先使用已下载的本地文件
                 const localSource = await this.tryLocalSource(musicItem);
                 const result =
-                    localSource ??
-                    (await pluginManager.adapters.getMediaSource({
-                        hash: pluginManager.getPluginByPlatform(musicItem.platform)?.hash ?? '',
-                        musicItem,
-                        quality: validQuality,
-                        qualityOrder: QUALITY_KEYS,
-                        qualityFallbackOrder: this.getQualityFallbackOrder(),
-                    }));
+                    localSource ?? (await this.resolveMediaSource(musicItem, validQuality));
 
                 if (result?.url && this.isCurrentMusic(savedMusic)) {
                     this.audioController.setTrackSource(result, musicItem);
@@ -280,15 +274,7 @@ class TrackPlayer {
             // 获取音源：优先使用已下载的本地文件
             const quality = store.get(qualityAtom);
             const localSource = await this.tryLocalSource(musicItem);
-            const result =
-                localSource ??
-                (await pluginManager.adapters.getMediaSource({
-                    hash: pluginManager.getPluginByPlatform(musicItem.platform)?.hash ?? '',
-                    musicItem,
-                    quality,
-                    qualityOrder: QUALITY_KEYS,
-                    qualityFallbackOrder: this.getQualityFallbackOrder(),
-                }));
+            const result = localSource ?? (await this.resolveMediaSource(musicItem, quality));
 
             if (!result?.url) throw new Error('No media source');
             if (!this.isCurrentMusic(targetSlim)) return; // 切歌了
@@ -475,15 +461,7 @@ class TrackPlayer {
 
             // 切换音质：仅在音质匹配时使用本地文件
             const localSource = await this.tryLocalSource(musicItem, quality);
-            const result =
-                localSource ??
-                (await pluginManager.adapters.getMediaSource({
-                    hash: pluginManager.getPluginByPlatform(musicItem.platform)?.hash ?? '',
-                    musicItem,
-                    quality,
-                    qualityOrder: QUALITY_KEYS,
-                    qualityFallbackOrder: this.getQualityFallbackOrder(),
-                }));
+            const result = localSource ?? (await this.resolveMediaSource(musicItem, quality));
 
             if (result?.url && this.isCurrentMusic(current)) {
                 this.audioController.setTrackSource(result, musicItem);
@@ -935,6 +913,40 @@ class TrackPlayer {
             url: fsUtil.pathToAssetUrl(downloaded.path),
             quality: downloaded.quality,
         };
+    }
+
+    /**
+     * 解析音源：若为网易云音乐，优先尝试官方账号音源接口，失败时平滑回退插件
+     */
+    private async resolveMediaSource(
+        musicItem: IMusic.IMusicItem,
+        quality: IMusic.IQualityKey,
+    ): Promise<IPlugin.IMediaSourceResult | null> {
+        if (musicItem.platform === 'wy') {
+            try {
+                const neteaseSource = await neteaseAccount.getMusicUrl(
+                    String(musicItem.id),
+                    quality,
+                );
+                if (neteaseSource?.url) {
+                    return {
+                        url: neteaseSource.url,
+                        quality: neteaseSource.quality,
+                        headers: neteaseSource.headers,
+                    };
+                }
+            } catch {
+                // 官方音源失败，降级回退到插件
+            }
+        }
+
+        return pluginManager.adapters.getMediaSource({
+            hash: pluginManager.getPluginByPlatform(musicItem.platform)?.hash ?? '',
+            musicItem,
+            quality,
+            qualityOrder: QUALITY_KEYS,
+            qualityFallbackOrder: this.getQualityFallbackOrder(),
+        });
     }
 
     /** 获取音质回退策略，'skip' 降级为 'lower' */
