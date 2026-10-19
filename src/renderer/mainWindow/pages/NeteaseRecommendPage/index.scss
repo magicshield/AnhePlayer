@@ -1,10 +1,9 @@
+// 滚动交给 .l-app-shell__content：SongTable 的虚拟列表监听的是它，
+// 页面自身再设 overflow 会让列表只渲染首屏十来行。左右留白也由外层统一提供。
 .p-netease-recommend {
     display: flex;
     flex-direction: column;
-    height: 100%;
-    padding: 24px 32px 0 32px;
-    box-sizing: border-box;
-    overflow-y: auto;
+    padding-top: var(--space-4);
 
     &__header {
         display: flex;

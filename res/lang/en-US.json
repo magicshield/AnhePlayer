@@ -610,6 +610,7 @@
         "daily_recommend_title": "Daily Song Recommendations",
         "daily_recommend_desc": "Updated daily at 06:00 according to your music taste",
         "default_nickname": "NetEase Music User",
+        "total_count": "{{count}} songs",
         "radar_fallback_title": "Personal Picks (Daily Recommend)",
         "radar_fallback_desc": "No Private Radar playlist found, showing your personalized daily recommendations instead",
         "login_failed": "Failed to open NetEase login, please try again later",

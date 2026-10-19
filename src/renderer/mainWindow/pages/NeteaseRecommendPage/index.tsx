@@ -294,7 +294,7 @@ export default function NeteaseRecommendPage() {
                                     : t('netease.daily_recommend_desc')}
                             </span>
                         </div>
-                        <span>{t('playlist.total_count', { count: currentSongs.length })}</span>
+                        <span>{t('netease.total_count', { count: currentSongs.length })}</span>
                     </div>
 
                     {/* Toolbar */}

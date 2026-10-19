@@ -610,6 +610,7 @@
         "daily_recommend_title": "每日歌曲推薦",
         "daily_recommend_desc": "根據你的音樂偏好每日 6:00 更新",
         "default_nickname": "網易雲音樂用戶",
+        "total_count": "共 {{count}} 首",
         "radar_fallback_title": "私人推薦（每日推薦）",
         "radar_fallback_desc": "未找到獨立雷達歌單，已為你展示個人化每日推薦歌曲",
         "login_failed": "開啟網易雲登入失敗，請稍後重試",

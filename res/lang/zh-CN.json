@@ -610,6 +610,7 @@
         "daily_recommend_title": "每日歌曲推荐",
         "daily_recommend_desc": "根据你的音乐偏好每日 6:00 更新",
         "default_nickname": "网易云音乐用户",
+        "total_count": "共 {{count}} 首",
         "radar_fallback_title": "私人推荐（每日推荐）",
         "radar_fallback_desc": "未找到独立雷达歌单，已为你展示个性化每日推荐歌曲",
         "login_failed": "打开网易云登录失败，请稍后重试",
