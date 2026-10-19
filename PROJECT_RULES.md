@@ -370,6 +370,23 @@ NODE_ENV=production npx electron-forge package
 
 ---
 
+### 2.15 正式发版只走 tauri-build.yml，Electron 流水线会让安装包膨胀 20 倍
+
+**触发信号**：新版本 Windows 安装包从约 5MB 突然变成 90MB+（1.0.25 实际为 92.5MB，portable zip 136MB）。
+
+**根因/约束**：仓库并存两条完整流水线。`build.yml` + `release.yml` 是 Electron 遗留链路，产出 `AnhePlayer-<版本>-win32-x64-setup.exe`、portable zip、dmg、deb、rpm，内置 Chromium，体积天然在 90MB 以上；Tauri 正式链路 `tauri-build.yml`（由 `v*` 标签触发）产出 `AnhePlayer_<版本>_x64-setup.exe` 与 `AnhePlayer_<版本>_x64_en-US.msi`，约 5~7MB。两条链路的资产命名不同，误发后仅看 Release 页面不易察觉。
+
+**正确做法**：
+1. 正式发版只推送 `v*` 标签触发 `tauri-build.yml`；不要用 `build.yml` + `release.yml` 发布正式版本。
+2. 打标签前同步四处版本号：`package.json`、`release/version.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml`（含 `Cargo.lock` 中本地包版本）。
+3. `release/version.json` 的 `download` 必须指向 Tauri 资产命名（下划线 `AnhePlayer_<版本>_x64-setup.exe`），不能指向 Electron 的连字符命名。
+
+**验证方式**：Release 仅含 NSIS exe + MSI，体积约 5MB / 7MB；`gh release view v<版本>` 中不存在带 `-win32-x64-` 的资产。
+
+**适用范围**：本项目所有正式发布。
+
+---
+
 ## 三、架构决策
 
 ### 3.1 不迁移到 Tauri
