@@ -30,7 +30,8 @@ fn read_close_behavior() -> String {
 }
 
 /// 显示并聚焦主窗口；同时恢复任务栏按钮（关闭到托盘时曾被隐藏）
-fn show_main_window(app: &AppHandle) {
+/// 注意：命名需避开 `system_util::show_main_window` 命令，否则会遮蔽同名命令
+fn restore_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_skip_taskbar(false);
         let _ = window.unminimize();
@@ -125,7 +126,7 @@ pub fn run() {
                 .show_menu_on_left_click(false)
                 .tooltip("AnhePlayer")
                 .on_menu_event(|app, event| match event.id.as_ref() {
-                    "tray-show" => show_main_window(app),
+                    "tray-show" => restore_main_window(app),
                     "tray-exit" => app.exit(0),
                     _ => {}
                 })
@@ -136,7 +137,7 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        show_main_window(tray.app_handle());
+                        restore_main_window(tray.app_handle());
                     }
                 });
 
