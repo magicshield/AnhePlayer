@@ -22,6 +22,8 @@ Anhe Player is a modern desktop music player built exclusively for Windows, powe
 
 The modern refactor features an isolated **Web Worker LX sound source sandbox** paired with a zero-cost **Tauri IPC ContextBridge adapter**, drastically reducing memory and CPU overhead while offering lightning-fast cold boot times.
 
+<img width="1022" height="692" alt="image" src="https://img.meituan.net/content/1a7c6bc9cfc1c3f7dfa9a95d2a194cf0337799.png" />
+
 ## Download
 
 Download the latest release from [GitHub Releases](https://github.com/raclen/AnhePlayer/releases).
@@ -33,14 +35,14 @@ Currently supports **Windows (10 / 11)**:
 
 ## Features
 
-| Feature                       | Description                                                                      |
-| ----------------------------- | -------------------------------------------------------------------------------- |
+| Feature                       | Description                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
 | Windows Desktop App           | Deeply optimized for Windows with sub-second cold boot and minimal memory footprint |
-| Plugin-based playback parsing | Supports LX `.js` plugins for playback URL parsing                               |
-| Source redirect               | Routes playback requests to available parser sources                             |
-| Multi-quality playback        | Supports low, standard, high, and super quality options when provided by plugins |
-| Theme packs                   | Customizes colors, backgrounds, and the overall app appearance                   |
-| Local data                    | App data stays on your device and personal data is not uploaded                  |
+| Plugin-based playback parsing | Supports LX `.js` plugins for playback URL parsing                                  |
+| Source redirect               | Routes playback requests to available parser sources                                |
+| Multi-quality playback        | Supports low, standard, high, and super quality options when provided by plugins    |
+| Theme packs                   | Customizes colors, backgrounds, and the overall app appearance                      |
+| Local data                    | App data stays on your device and personal data is not uploaded                     |
 
 ## Plugins
 
@@ -105,10 +107,10 @@ Curated themes currently available in the marketplace:
 
 ### Requirements
 
-| Dependency | Version | Note |
-| ---------- | ------- | ---- |
-| Node.js    | 22      | Frontend & build runtime |
-| pnpm       | 9+      | Package manager |
+| Dependency | Version | Note                                                 |
+| ---------- | ------- | ---------------------------------------------------- |
+| Node.js    | 22      | Frontend & build runtime                             |
+| pnpm       | 9+      | Package manager                                      |
 | Rust       | 1.80+   | Tauri v2 core compilation (Optional, only for Tauri) |
 
 > For comprehensive architecture design and migration details, please refer to the [Tauri Migration & Architecture Guide](./TAURI_MIGRATION_GUIDE.md).
