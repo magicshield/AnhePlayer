@@ -264,7 +264,14 @@
         "source_redirect_none": "不重定向",
         "source_redirect_to": "音源重定向至「{{target}}」",
         "source_redirect_no_target": "没有可用的重定向插件",
-        "user_variable_success": "设置成功~"
+        "user_variable_success": "设置成功~",
+        "check_source": "检测",
+        "source_available": "可用",
+        "source_unavailable": "不可用",
+        "source_checking": "检测中",
+        "source_unchecked": "未检测",
+        "source_unsupported": "无法检测",
+        "source_check_summary": "检测完成：{{available}} 个可用，{{unavailable}} 个不可用，{{unsupported}} 个无法检测"
     },
     "download": {
         "title": "下载管理",

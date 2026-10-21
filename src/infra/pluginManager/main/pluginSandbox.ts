@@ -17,6 +17,18 @@ export function computeHash(code: string): string {
 }
 
 /**
+ * 判断脚本是否为洛雪插件。
+ * 混淆后的插件会用 globalThis['\x6c\x78'] / globalThis['lx'] 代替 globalThis.lx，
+ * 只匹配字面量 lx 会把这些插件误判为非洛雪脚本。
+ */
+export function looksLikeLxPlugin(code: string): boolean {
+    if (!/globalThis/.test(code)) return false;
+    return /globalThis\s*(?:\.\s*lx|\[\s*['"]lx['"]\s*\]|\[\s*['"]\\x6c\\x78['"]\s*\]|\[\s*['"]\\u006c\\u0078['"]\s*\])/i.test(
+        code,
+    );
+}
+
+/**
  * 创建受保护的沙箱全局对象。
  * 使用 Proxy 保护预注入的全局变量不被覆盖或删除，
  * 但允许插件代码创建新的全局变量（var/function 声明需要）。
@@ -2023,7 +2035,7 @@ export async function executeLxPluginCode(
     hash: string,
     pluginPath: string,
 ): Promise<IPlugin.IPluginInstance[] | null> {
-    if (!/globalThis\s*(?:\.\s*lx|\[\s*['"]lx['"]\s*\])/.test(code)) {
+    if (!looksLikeLxPlugin(code)) {
         return null;
     }
 
@@ -2034,6 +2046,48 @@ export async function executeLxPluginCode(
 
     const lx = {
         EVENT_NAMES: LX_EVENT_NAMES,
+        // 洛雪运行时版本与环境标识：部分音源据此判断是否启用 utils、以及拼接 User-Agent
+        version: '2.0.0',
+        env: 'desktop',
+        // 脚本元信息：flower/grass 等音源初始化时会直接读取 currentScriptInfo.version
+        currentScriptInfo: {
+            name: meta.name,
+            description: meta.description,
+            version: meta.version,
+            author: meta.author,
+            homepage: meta.homepage,
+            rawScript: code,
+        },
+        // 洛雪内置工具，覆盖音源常用的 buffer / crypto 方法
+        utils: {
+            buffer: {
+                from: (data: any, encoding?: any) => Buffer.from(data, encoding),
+                bufToString: (buffer: any, format?: any) => Buffer.from(buffer).toString(format || 'utf8'),
+            },
+            crypto: {
+                md5: (value: any) => crypto.createHash('md5').update(value).digest('hex'),
+                randomBytes: (size: number) => crypto.randomBytes(size),
+                aesEncrypt: (buffer: any, mode = 'aes-128-cbc', key: any, iv?: any) => {
+                    const cipher = crypto.createCipheriv(mode as any, key, iv || null);
+                    cipher.setAutoPadding(false);
+                    return Buffer.concat([cipher.update(Buffer.from(buffer)), cipher.final()]);
+                },
+                rsaEncrypt: (buffer: any, key: string) => {
+                    const data = Buffer.from(buffer);
+                    const chunkSize = Math.ceil(key.length / 2) - 11;
+                    const chunks: Buffer[] = [];
+                    for (let i = 0; i < data.length; i += chunkSize) {
+                        chunks.push(
+                            crypto.publicEncrypt(
+                                { key, padding: crypto.constants.RSA_PKCS1_PADDING },
+                                data.subarray(i, i + chunkSize),
+                            ),
+                        );
+                    }
+                    return Buffer.concat(chunks);
+                },
+            },
+        },
         on(eventName: string, handler: ILxRequestHandler) {
             if (eventName === LX_EVENT_NAMES.request && typeof handler === 'function') {
                 requestHandlers.push(handler);
@@ -2152,8 +2206,12 @@ export async function executeLxPluginCode(
 
         script.runInContext(context, { timeout: 10000 });
 
-        // 洛雪插件常在 Promise.then 中发送 inited，等待一轮任务让初始化落地。
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        // 洛雪插件常在 Promise.then 中发送 inited，等待一轮任务让初始化落地；
+        // 部分音源（如 flower/grass）初始化时还要先请求远端配置，需要短暂轮询等待。
+        for (let i = 0; i < 60; i++) {
+            if (initedPayload?.sources && requestHandlers.length > 0) break;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+        }
 
         if (!initedPayload?.sources || requestHandlers.length === 0) {
             return null;

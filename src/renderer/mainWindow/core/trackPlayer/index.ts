@@ -615,7 +615,7 @@ class TrackPlayer {
         store.set(qualityAtom, 'standard');
         syncKV.set('player.currentQuality', 'standard');
 
-        const behavior = appConfig.getConfigByKey('playMusic.playError') ?? 'skip';
+        const behavior = appConfig.getConfigByKey('playMusic.playError') ?? 'retry_with_source';
 
         if (
             behavior === 'retry_with_source' &&

@@ -5,8 +5,11 @@
  * - Node VM 沙箱执行 → new Function 执行（Worker 环境）
  * - axios / lx.request → host_request 消息桥（宿主经 Tauri http_request 转发，穿透 CORS）
  * - 移除 crypto / https / Buffer 等 Node 依赖
+ *   注意：LX 的 lx.utils.crypto 仍需 MD5/AES，这里用浏览器可用的 crypto-js 实现
  * 由 lxWorker.ts 在 Web Worker 中加载运行。
  */
+
+import CryptoJS from 'crypto-js';
 
 // ─── Worker 侧：与宿主的 HTTP 桥 ───
 
@@ -119,6 +122,93 @@ const BufferShim = {
             return { toString: (_enc?: string) => data };
         }
         return { toString: () => String(data) };
+    },
+};
+
+/** 把各种输入统一转成字节数组（模拟 Node Buffer.from 的常用编码） */
+function toLxBytes(data: any, encoding?: string): Uint8Array {
+    if (typeof data === 'string') {
+        const enc = (encoding || 'utf8').toLowerCase();
+        if (enc === 'base64') {
+            const binary = atob(data);
+            return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+        }
+        if (enc === 'hex') {
+            const bytes: number[] = [];
+            for (let i = 0; i + 1 < data.length; i += 2) bytes.push(parseInt(data.slice(i, i + 2), 16));
+            return Uint8Array.from(bytes);
+        }
+        return new TextEncoder().encode(data);
+    }
+    if (data instanceof Uint8Array) return data;
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    if (Array.isArray(data)) return Uint8Array.from(data);
+    if (data && typeof data === 'object' && data.buffer instanceof ArrayBuffer) {
+        return new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength ?? data.length ?? 0);
+    }
+    return new TextEncoder().encode(String(data));
+}
+
+/** 字节数组按指定编码转字符串（对应 Buffer#toString） */
+function lxBytesToString(bytes: Uint8Array, format?: string): string {
+    const fmt = (format || 'utf8').toLowerCase();
+    if (fmt === 'hex') return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    if (fmt === 'base64') {
+        let binary = '';
+        for (const b of bytes) binary += String.fromCharCode(b);
+        return btoa(binary);
+    }
+    return new TextDecoder().decode(bytes);
+}
+
+/** Uint8Array ↔ crypto-js WordArray */
+function bytesToWordArray(bytes: Uint8Array): any {
+    const words: number[] = [];
+    for (let i = 0; i < bytes.length; i++) words[i >>> 2] |= bytes[i] << (24 - (i % 4) * 8);
+    return CryptoJS.lib.WordArray.create(words as any, bytes.length);
+}
+
+function wordArrayToBytes(wordArray: any): Uint8Array {
+    const words: number[] = wordArray.words;
+    const { sigBytes } = wordArray;
+    const bytes = new Uint8Array(sigBytes);
+    for (let i = 0; i < sigBytes; i++) {
+        bytes[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+    }
+    return bytes;
+}
+
+/** 洛雪 lx.utils 的 Worker 兼容实现（crypto-js 提供同步的 MD5/AES） */
+const lxUtils = {
+    buffer: {
+        from: (data: any, encoding?: string) => toLxBytes(data, encoding),
+        bufToString: (buffer: any, format?: string) => lxBytesToString(toLxBytes(buffer), format),
+    },
+    crypto: {
+        md5: (value: any) => CryptoJS.MD5(bytesToWordArray(toLxBytes(value))).toString(CryptoJS.enc.Hex),
+        randomBytes: (size: number) => {
+            const bytes = new Uint8Array(size);
+            globalThis.crypto.getRandomValues(bytes);
+            return bytes;
+        },
+        aesEncrypt: (buffer: any, mode = 'aes-128-cbc', key: any, iv?: any) => {
+            const isEcb = /ecb/i.test(mode);
+            const config: any = {
+                mode: isEcb ? CryptoJS.mode.ECB : CryptoJS.mode.CBC,
+                // 与洛雪保持一致：不做自动填充，由音源自行补齐块大小
+                padding: CryptoJS.pad.NoPadding,
+            };
+            if (!isEcb) config.iv = bytesToWordArray(toLxBytes(iv ?? ''));
+            const encrypted = CryptoJS.AES.encrypt(
+                bytesToWordArray(toLxBytes(buffer)),
+                bytesToWordArray(toLxBytes(key)),
+                config,
+            );
+            return wordArrayToBytes(encrypted.ciphertext);
+        },
+        rsaEncrypt: () => {
+            throw new Error('当前运行环境不支持 utils.crypto.rsaEncrypt');
+        },
     },
 };
 
@@ -2118,6 +2208,18 @@ const LX_MUSIC_SHEET_INFO_GETTERS: Record<string, ILxMusicSheetInfoGetter> = {
 };
 
 /**
+ * 判断脚本是否为洛雪插件。
+ * 混淆后的插件会用 globalThis['\x6c\x78'] / globalThis['lx'] 代替 globalThis.lx，
+ * 只匹配字面量 lx 会把这些插件误判为非洛雪脚本。
+ */
+function looksLikeLxPlugin(code: string): boolean {
+    if (!/globalThis/.test(code)) return false;
+    return /globalThis\s*(?:\.\s*lx|\[\s*['"]lx['"]\s*\]|\[\s*['"]\\x6c\\x78['"]\s*\]|\[\s*['"]\\u006c\\u0078['"]\s*\])/i.test(
+        code,
+    );
+}
+
+/**
  * 在沙箱中执行洛雪插件，返回由 initSource 事件声明的音源实例列表。
  *
  * 洛雪插件通过 globalThis.lx 注册 request 监听，
@@ -2129,7 +2231,7 @@ export async function executeLxPluginCode(
     hash: string,
     pluginPath: string,
 ): Promise<IPlugin.IPluginInstance[] | null> {
-    if (!/globalThis\s*(?:\.\s*lx|\[\s*['"]lx['"]\s*\])/.test(code)) {
+    if (!looksLikeLxPlugin(code)) {
         return null;
     }
 
@@ -2140,6 +2242,19 @@ export async function executeLxPluginCode(
 
     const lx = {
         EVENT_NAMES: LX_EVENT_NAMES,
+        // 洛雪运行时版本与环境标识：部分音源据此判断是否启用 utils、以及拼接 User-Agent
+        version: '2.0.0',
+        env: 'desktop',
+        // 脚本元信息：flower/grass 等音源初始化时会直接读取 currentScriptInfo.version
+        currentScriptInfo: {
+            name: meta.name,
+            description: meta.description,
+            version: meta.version,
+            author: meta.author,
+            homepage: meta.homepage,
+            rawScript: code,
+        },
+        utils: lxUtils,
         on(eventName: string, handler: ILxRequestHandler) {
             if (eventName === LX_EVENT_NAMES.request && typeof handler === 'function') {
                 requestHandlers.push(handler);

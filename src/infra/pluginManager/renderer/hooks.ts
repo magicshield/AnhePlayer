@@ -15,7 +15,7 @@
 
 import { useMemo } from 'react';
 import { useAtomValue } from 'jotai/react';
-import { pluginsAtom, pluginMetaAtom } from './store';
+import { pluginsAtom, pluginMetaAtom, pluginAvailabilityAtom } from './store';
 import { sortByPluginOrder } from '../common/sortByOrder';
 
 // ─── 基础 Hooks ───
@@ -25,6 +25,9 @@ export const usePlugins = () => useAtomValue(pluginsAtom);
 
 /** 订阅插件 meta */
 export const usePluginMeta = () => useAtomValue(pluginMetaAtom);
+
+/** 订阅音源可用性检测结果（按 hash 索引） */
+export const usePluginAvailability = () => useAtomValue(pluginAvailabilityAtom);
 
 // ─── 派生 Hooks ───
 // 注意：派生 hook 同时订阅 pluginsAtom 和 pluginMetaAtom，

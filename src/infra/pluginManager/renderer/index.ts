@@ -17,7 +17,8 @@ import type {
 } from '@appTypes/infra/pluginManager';
 import { CONTEXT_BRIDGE_KEY } from '../common/constant';
 import { sortByPluginOrder } from '../common/sortByOrder';
-import { store, pluginsAtom, pluginMetaAtom } from './store';
+import { store, pluginsAtom, pluginMetaAtom, pluginAvailabilityAtom } from './store';
+import type { IPluginAvailabilityResult } from './store';
 
 // ─── Preload 接口类型 ───
 
@@ -323,12 +324,132 @@ const adapters = {
     },
 };
 
+// ─── 音源可用性检测 ───
+
+/** 单次探测超时（毫秒） */
+const CHECK_TIMEOUT = 15_000;
+/** 并发探测数，避免同时打满多个音源接口 */
+const CHECK_CONCURRENCY = 3;
+/** 搜索探测关键词：热门歌手，正常音源必有结果 */
+const CHECK_SEARCH_QUERY = '周杰伦';
+
+export interface IPluginCheckSummary {
+    available: number;
+    unavailable: number;
+    unsupported: number;
+}
+
+/** 给 Promise 加超时，避免远端接口挂起导致检测一直转圈 */
+function withTimeout<T>(promise: Promise<T>, timeout = CHECK_TIMEOUT): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('检测超时')), timeout);
+        promise.then(
+            (value) => {
+                clearTimeout(timer);
+                resolve(value);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            },
+        );
+    });
+}
+
+/** 选取插件的轻量探测方法；没有可探测接口时返回 null */
+function buildCheckCall(
+    plugin: IPlugin.IPluginDelegate,
+): { method: 'search' | 'getTopLists'; args: any[] } | null {
+    if (plugin.supportedMethod.includes('search')) {
+        return { method: 'search', args: [CHECK_SEARCH_QUERY, 1, 'music'] };
+    }
+    if (plugin.supportedMethod.includes('getTopLists')) {
+        return { method: 'getTopLists', args: [] };
+    }
+    return null;
+}
+
+/** 检测单个插件：接口有正常返回即视为可用 */
+async function checkSinglePlugin(hash: string): Promise<IPluginAvailabilityResult> {
+    const plugin = getPluginByHash(hash);
+    if (!plugin) {
+        return { state: 'unavailable', message: '插件未加载', checkedAt: Date.now() };
+    }
+
+    const call = buildCheckCall(plugin);
+    if (!call) {
+        return { state: 'unsupported', checkedAt: Date.now() };
+    }
+
+    try {
+        const result = await withTimeout(
+            callPluginMethod({
+                hash,
+                method: call.method,
+                args: call.args,
+            } as ICallPluginMethodParams),
+        );
+
+        // 正常接口一定会返回列表；空结果通常意味着接口已失效或插件吞掉了错误
+        const count = Array.isArray(result?.data)
+            ? result.data.length
+            : Array.isArray(result)
+              ? result.length
+              : 0;
+        if (count === 0) {
+            return { state: 'unavailable', message: '接口未返回结果', checkedAt: Date.now() };
+        }
+        return { state: 'available', checkedAt: Date.now() };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { state: 'unavailable', message, checkedAt: Date.now() };
+    }
+}
+
+/**
+ * 批量检测音源可用性。
+ * 检测过程中实时写入 pluginAvailabilityAtom，UI 可展示「检测中」。
+ */
+async function checkPluginsAvailability(hashes: string[]): Promise<IPluginCheckSummary> {
+    const summary: IPluginCheckSummary = { available: 0, unavailable: 0, unsupported: 0 };
+
+    // 先整体置为检测中
+    const initial = { ...store.get(pluginAvailabilityAtom) };
+    for (const hash of hashes) {
+        initial[hash] = { state: 'checking' };
+    }
+    store.set(pluginAvailabilityAtom, initial);
+
+    // 简单的并发池，避免一次性发起过多网络请求
+    const queue = [...hashes];
+    const workers = Array.from({ length: Math.min(CHECK_CONCURRENCY, queue.length) }, async () => {
+        while (queue.length > 0) {
+            const hash = queue.shift()!;
+            const result = await checkSinglePlugin(hash);
+            store.set(pluginAvailabilityAtom, {
+                ...store.get(pluginAvailabilityAtom),
+                [hash]: result,
+            });
+
+            if (result.state === 'available') summary.available++;
+            else if (result.state === 'unsupported') summary.unsupported++;
+            else summary.unavailable++;
+        }
+    });
+    await Promise.all(workers);
+
+    return summary;
+}
+
 // ─── 导出 ───
+
+export type { IPluginAvailabilityResult, PluginAvailabilityState } from './store';
 
 const pluginManager = {
     setup,
     whenReady,
     callPluginMethod,
+    checkPluginsAvailability,
     installPlugin,
     installPluginFromCode,
     uninstallPlugin,

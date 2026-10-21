@@ -18,6 +18,7 @@ import { Toggle } from '@renderer/mainWindow/components/ui/Toggle';
 import { showModal } from '@renderer/mainWindow/components/ui/Modal/modalManager';
 import { showToast } from '@renderer/mainWindow/components/ui/Toast';
 import pluginManager from '@infra/pluginManager/renderer';
+import type { IPluginAvailabilityResult } from '@infra/pluginManager/renderer';
 import { cn } from '@common/cn';
 
 // ── 方法名到 i18n key 的映射 ──
@@ -37,8 +38,40 @@ const noAnimateLayoutChanges = () => false;
 export interface PluginItemProps {
     plugin: IPlugin.IPluginDelegate;
     enabled: boolean;
+    /** 音源可用性检测结果；undefined 表示尚未检测 */
+    availability?: IPluginAvailabilityResult;
     sourceRedirectPlatform?: string | null;
     onToggleEnabled: (hash: string, enabled: boolean) => void;
+}
+
+/** 音源可用性状态徽章 */
+function AvailabilityBadge({ availability }: { availability?: IPluginAvailabilityResult }) {
+    const { t } = useTranslation();
+
+    switch (availability?.state) {
+        case 'available':
+            return <Badge variant="tint">{t('plugin.source_available')}</Badge>;
+        case 'unavailable':
+            return (
+                <Badge variant="tint" colorScheme="danger" title={availability.message}>
+                    {t('plugin.source_unavailable')}
+                </Badge>
+            );
+        case 'checking':
+            return (
+                <Badge variant="outline" colorScheme="warn">
+                    {t('plugin.source_checking')}
+                </Badge>
+            );
+        case 'unsupported':
+            return (
+                <Badge variant="outline" colorScheme="warn">
+                    {t('plugin.source_unsupported')}
+                </Badge>
+            );
+        default:
+            return <Badge variant="outline">{t('plugin.source_unchecked')}</Badge>;
+    }
 }
 
 /**
@@ -48,7 +81,13 @@ export interface PluginItemProps {
  * 仅处理拖拽定位逻辑；内容委托给 memo 化的子组件，
  * 从而避免拖拽期间 DndContext 频繁更新引发所有卡片的重渲染。
  */
-function PluginItem({ plugin, enabled, sourceRedirectPlatform, onToggleEnabled }: PluginItemProps) {
+function PluginItem({
+    plugin,
+    enabled,
+    availability,
+    sourceRedirectPlatform,
+    onToggleEnabled,
+}: PluginItemProps) {
     const { t } = useTranslation();
 
     const {
@@ -103,6 +142,7 @@ function PluginItem({ plugin, enabled, sourceRedirectPlatform, onToggleEnabled }
                 <PluginItemInfo
                     plugin={plugin}
                     enabled={enabled}
+                    availability={availability}
                     sourceRedirectPlatform={sourceRedirectPlatform}
                     onToggleEnabled={onToggleEnabled}
                 />
@@ -119,6 +159,7 @@ function PluginItem({ plugin, enabled, sourceRedirectPlatform, onToggleEnabled }
 const PluginItemInfo = memo(function PluginItemInfo({
     plugin,
     enabled,
+    availability,
     sourceRedirectPlatform,
     onToggleEnabled,
 }: PluginItemProps) {
@@ -142,6 +183,7 @@ const PluginItemInfo = memo(function PluginItemInfo({
             <div className="p-plugin-manager__item-info">
                 <div className="p-plugin-manager__item-title-row">
                     <h3 className="p-plugin-manager__item-name">{plugin.platform}</h3>
+                    <AvailabilityBadge availability={availability} />
                     {plugin.version && (
                         <span className="p-plugin-manager__item-version">
                             {t('plugin.version_label', {
@@ -336,6 +378,7 @@ export default memo(
     (prev, next) =>
         prev.plugin === next.plugin &&
         prev.enabled === next.enabled &&
+        prev.availability === next.availability &&
         prev.sourceRedirectPlatform === next.sourceRedirectPlatform &&
         prev.onToggleEnabled === next.onToggleEnabled,
 );

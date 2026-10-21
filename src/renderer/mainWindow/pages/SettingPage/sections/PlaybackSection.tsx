@@ -130,7 +130,7 @@ export function PlaybackSection() {
                 description={t('settings.playback.play_error_desc')}
                 control={
                     <Select
-                        value={playError ?? 'skip'}
+                        value={playError ?? 'retry_with_source'}
                         onChange={setPlayError}
                         options={[
                             {

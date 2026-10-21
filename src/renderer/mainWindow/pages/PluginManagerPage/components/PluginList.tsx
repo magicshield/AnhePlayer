@@ -15,7 +15,11 @@ import { useTranslation } from 'react-i18next';
 /** 提取为模块常量，避免每次渲染创建新数组引用 */
 const DND_MODIFIERS = [restrictToVerticalAxis];
 import pluginManager from '@infra/pluginManager/renderer';
-import { usePlugins, usePluginMeta } from '@infra/pluginManager/renderer/hooks';
+import {
+    usePlugins,
+    usePluginMeta,
+    usePluginAvailability,
+} from '@infra/pluginManager/renderer/hooks';
 import { sortByPluginOrder } from '@infra/pluginManager/common/sortByOrder';
 import { StatusPlaceholder } from '@renderer/mainWindow/components/ui/StatusPlaceholder';
 import { RequestStatus, LOCAL_PLUGIN_HASH } from '@common/constant';
@@ -32,6 +36,7 @@ export default function PluginList() {
     const { t } = useTranslation();
     const plugins = usePlugins();
     const meta = usePluginMeta();
+    const availability = usePluginAvailability();
 
     // 过滤内置插件 + 按 meta.order 排序
     const sortedPlugins = useMemo(() => {
@@ -98,6 +103,7 @@ export default function PluginList() {
                             key={plugin.hash}
                             plugin={plugin}
                             enabled={meta[plugin.hash]?.enabled !== false}
+                            availability={availability[plugin.hash]}
                             sourceRedirectPlatform={
                                 meta[plugin.hash]?.sourceRedirectPlatform ?? null
                             }

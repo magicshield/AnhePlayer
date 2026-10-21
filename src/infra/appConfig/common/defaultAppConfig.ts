@@ -11,7 +11,7 @@ const defaultAppConfig: IAppConfig = {
     'playMusic.defaultQuality': 'standard',
     'playMusic.clickMusicList': 'replace',
     'playMusic.caseSensitiveInSearch': false,
-    'playMusic.playError': 'skip',
+    'playMusic.playError': 'retry_with_source',
     'playMusic.whenDeviceRemoved': 'play',
     'normal.taskbarThumb': 'window',
     'normal.closeBehavior': 'minimize',

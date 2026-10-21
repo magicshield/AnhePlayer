@@ -1,9 +1,11 @@
-import { Rss, Plus } from 'lucide-react';
-import { useMemo } from 'react';
+import { Activity, Plus } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@renderer/mainWindow/components/ui/Button';
 import { showModal } from '@renderer/mainWindow/components/ui/Modal/modalManager';
+import { showToast } from '@renderer/mainWindow/components/ui/Toast';
 import { usePlugins } from '@infra/pluginManager/renderer/hooks';
+import pluginManager from '@infra/pluginManager/renderer';
 import { LOCAL_PLUGIN_HASH } from '@common/constant';
 import PluginList from './components/PluginList';
 import './index.scss';
@@ -21,6 +23,27 @@ export default function PluginManagerPage() {
         () => plugins.filter((p) => p.hash !== LOCAL_PLUGIN_HASH).length,
         [plugins],
     );
+    const [checking, setChecking] = useState(false);
+
+    /** 检测列表中全部音源是否可用 */
+    const handleCheckSources = useCallback(async () => {
+        const hashes = plugins.filter((p) => p.hash !== LOCAL_PLUGIN_HASH).map((p) => p.hash);
+        if (hashes.length === 0) return;
+
+        setChecking(true);
+        try {
+            const summary = await pluginManager.checkPluginsAvailability(hashes);
+            showToast(
+                t('plugin.source_check_summary', {
+                    available: summary.available,
+                    unavailable: summary.unavailable,
+                    unsupported: summary.unsupported,
+                }),
+            );
+        } finally {
+            setChecking(false);
+        }
+    }, [plugins, t]);
 
     return (
         <div className="p-plugin-manager">
@@ -38,10 +61,12 @@ export default function PluginManagerPage() {
                     <Button
                         variant="secondary"
                         size="md"
-                        icon={<Rss size={16} />}
-                        onClick={() => showModal('PluginSubscriptionModal')}
+                        icon={<Activity size={16} />}
+                        loading={checking}
+                        disabled={pluginCount === 0}
+                        onClick={handleCheckSources}
                     >
-                        {t('plugin.subscription_setting')}
+                        {t('plugin.check_source')}
                     </Button>
                     <Button
                         variant="primary"

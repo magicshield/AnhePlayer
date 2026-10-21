@@ -264,7 +264,14 @@
         "source_redirect_none": "No Redirect",
         "source_redirect_to": "Redirected to \"{{target}}\"",
         "source_redirect_no_target": "No available redirect plugins",
-        "user_variable_success": "Setting Successful~"
+        "user_variable_success": "Setting Successful~",
+        "check_source": "Check",
+        "source_available": "Available",
+        "source_unavailable": "Unavailable",
+        "source_checking": "Checking",
+        "source_unchecked": "Not checked",
+        "source_unsupported": "Unsupported",
+        "source_check_summary": "Check complete: {{available}} available, {{unavailable}} unavailable, {{unsupported}} unsupported"
     },
     "download": {
         "title": "Download Management",
