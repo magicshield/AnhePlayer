@@ -105,9 +105,6 @@ interface _IAppConfig {
     'private.lyricWindowSize': ISize;
 
     'private.minimodeWindowPosition': IPoint;
-
-    /** 插件订阅源列表 */
-    'private.pluginSubscription': Array<{ name: string; srcUrl: string }>;
 }
 
 type PartialOrNull<T> = { [P in keyof T]?: T[P] | null };

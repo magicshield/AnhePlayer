@@ -13,7 +13,6 @@ import PluginInstallModal from './PluginModal/PluginInstallModal';
 import PluginImportModal from './PluginModal/PluginImportModal';
 import PluginUserVariableModal from './PluginModal/PluginUserVariableModal';
 import PluginDescriptionModal from './PluginModal/PluginDescriptionModal';
-import PluginSubscriptionModal from './PluginModal/PluginSubscriptionModal';
 import PluginSourceRedirectModal from './PluginModal/PluginSourceRedirectModal';
 import AddMusicToSheetModal from './AddMusicToSheetModal';
 import CreateSheetModal from './CreateSheetModal';
@@ -33,7 +32,6 @@ export const modalRegistry = {
     PluginImportModal,
     PluginUserVariableModal,
     PluginDescriptionModal,
-    PluginSubscriptionModal,
     PluginSourceRedirectModal,
     AddMusicToSheetModal,
     CreateSheetModal,
