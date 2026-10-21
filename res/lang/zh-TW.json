@@ -133,7 +133,9 @@
         "play_or_pause": "播放/暫停",
         "repeat_mode": "循環模式",
         "collapse_player_detail": "收起播放詳情",
-        "play_all": "播放全部"
+        "play_all": "播放全部",
+        "source_fallback_hint": "原音源「{{original}}」無法使用，已自動切換到「{{platform}}」，播放內容可能與原曲不一致",
+        "source_fallback_toast": "「{{original}}」音源無法使用，已切換到「{{platform}}」，播放內容可能與原曲不一致"
     },
     "lyric": {
         "search": "搜尋歌詞",

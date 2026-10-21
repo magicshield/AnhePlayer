@@ -1,12 +1,12 @@
 {
-    "version": "1.0.28",
+    "version": "1.0.29",
     "changeLog": [
-        "插件管理页新增音源可用性检测：原「订阅设置」入口替换为「检测」，可一键检测已安装音源是否可用",
-        "增强洛雪插件运行时兼容性：补齐 lx.utils 加密工具、延长初始化等待、支持混淆写法的插件识别",
-        "播放失败时默认自动重试其他音源"
+        "播放栏改为显示实际播放来源：自动换源时标注真实平台，并提示播放内容可能与原曲不一致",
+        "音源检测升级为真实拉流校验：自动搜索测试歌曲并验证播放地址，避免「搜得到但放不出」",
+        "新增媒体探活命令，检测时只读取响应头，不下载音频内容"
     ],
     "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.28/AnhePlayer_1.0.28_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.28/AnhePlayer_1.0.28_x64_en-US.msi"
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.29/AnhePlayer_1.0.29_x64-setup.exe",
+        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.29/AnhePlayer_1.0.29_x64_en-US.msi"
     ]
 }

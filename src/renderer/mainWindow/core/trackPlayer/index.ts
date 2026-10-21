@@ -20,6 +20,8 @@ import { addToRecentlyPlayed } from '../recentlyPlayed';
 import appSync from '@infra/appSync/renderer/main';
 import { syncKV } from '@renderer/common/kvStore';
 import { REPEAT_MODE_MAP } from '@renderer/common/repeatModeMap';
+import { showToast } from '@renderer/mainWindow/components/ui/Toast';
+import i18n from '@infra/i18n/renderer';
 import { type IAudioController, createAudioController } from './audioController';
 import PlayQueue from './playQueue';
 import LyricManager from './lyricManager';
@@ -34,6 +36,7 @@ import {
     speedAtom,
     qualityAtom,
     currentLyricAtom,
+    playbackSourceAtom,
 } from './store';
 
 // ─── AppSync 桥接 ───
@@ -170,6 +173,7 @@ class TrackPlayer {
 
                 if (result?.url && this.isCurrentMusic(savedMusic)) {
                     this.audioController.setTrackSource(result, musicItem);
+                    this.markPlaybackSource(musicItem.platform);
                     this.audioController.seekTo(savedProgress);
                     store.set(qualityAtom, result.quality!);
                 }
@@ -282,6 +286,7 @@ class TrackPlayer {
             // 播放
             store.set(qualityAtom, result.quality ?? quality);
             this.audioController.setTrackSource(result, musicItem);
+            this.markPlaybackSource(musicItem.platform);
             this.audioController.play();
             this.consecutiveErrors = 0; // 播放成功，重置错误计数
             this.resetSourceRetryState();
@@ -465,6 +470,7 @@ class TrackPlayer {
 
             if (result?.url && this.isCurrentMusic(current)) {
                 this.audioController.setTrackSource(result, musicItem);
+                this.markPlaybackSource(musicItem.platform);
                 this.audioController.seekTo(currentTime);
                 if (wasPlaying) this.audioController.play();
                 store.set(qualityAtom, result.quality!);
@@ -690,6 +696,7 @@ class TrackPlayer {
                 store.set(qualityAtom, resolvedQuality);
                 syncKV.set('player.currentQuality', resolvedQuality);
                 this.audioController.setTrackSource(result, candidateMusic);
+                this.markPlaybackSource(candidateMusic.platform, sourceMusic.platform);
                 this.audioController.play();
                 this.consecutiveErrors = 0;
                 return true;
@@ -853,6 +860,24 @@ class TrackPlayer {
     }
 
     /**
+     * 记录实际播放来源，供播放栏展示。
+     * 自动换源时额外弹出提示，避免用户误以为播放的是原平台歌曲。
+     */
+    private markPlaybackSource(platform: string, originalPlatform?: string): void {
+        const fallback = !!originalPlatform && originalPlatform !== platform;
+        store.set(playbackSourceAtom, { platform, fallback, originalPlatform });
+        if (fallback) {
+            showToast(
+                i18n.t('playback.source_fallback_toast', {
+                    original: originalPlatform,
+                    platform,
+                }) as string,
+                { type: 'warn', duration: 5000 },
+            );
+        }
+    }
+
+    /**
      * 确认当前播放歌曲——更新 atom、持久化、加载歌词。
      * @param fetchLyric 默认 true；元数据更新时传 false 避免重复加载
      */
@@ -871,6 +896,7 @@ class TrackPlayer {
         this.resetSourceRetryState();
         store.set(currentMusicAtom, null);
         store.set(playerStateAtom, PlayerState.None);
+        store.set(playbackSourceAtom, null);
         this.resetProgress();
         syncKV.remove('player.currentMusic');
     }

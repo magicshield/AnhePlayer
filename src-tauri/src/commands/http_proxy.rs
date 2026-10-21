@@ -78,3 +78,65 @@ pub async fn http_request(
         body,
     })
 }
+
+#[derive(Debug, Serialize)]
+pub struct MediaProbePayload {
+    #[serde(rename = "statusCode")]
+    pub status_code: u16,
+    #[serde(rename = "contentType")]
+    pub content_type: String,
+    #[serde(rename = "finalUrl")]
+    pub final_url: String,
+}
+
+/// 探测媒体地址是否可拉流：只读取响应头，不下载音频内容。
+/// 用于音源可用性检测，避免 `http_request` 把整首音频读成文本。
+#[tauri::command]
+pub async fn probe_media_url(
+    url: String,
+    headers: Option<HashMap<String, String>>,
+) -> Result<MediaProbePayload, String> {
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .timeout(std::time::Duration::from_secs(12))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let mut req_builder = client
+        .get(&url)
+        .header(reqwest::header::RANGE, "bytes=0-2047");
+
+    if let Some(headers_map) = headers {
+        let mut header_map = HeaderMap::new();
+        for (k, v) in headers_map {
+            if let (Ok(name), Ok(val)) = (
+                HeaderName::from_bytes(k.as_bytes()),
+                HeaderValue::from_str(&v),
+            ) {
+                header_map.insert(name, val);
+            }
+        }
+        req_builder = req_builder.headers(header_map);
+    }
+
+    let resp = req_builder.send().await.map_err(|e| e.to_string())?;
+    let status_code = resp.status().as_u16();
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let final_url = resp.url().to_string();
+
+    // 只探测响应头：丢弃响应体，避免下载整段音频
+    drop(resp);
+
+    Ok(MediaProbePayload {
+        status_code,
+        content_type,
+        final_url,
+    })
+}
+

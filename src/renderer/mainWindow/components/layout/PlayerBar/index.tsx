@@ -2,7 +2,7 @@
 // PlayerBar — 底部播放栏
 // ============================================================================
 
-import { SkipBack, SkipForward, Play, Pause, ListMusic, Maximize2 } from 'lucide-react';
+import { SkipBack, SkipForward, Play, Pause, ListMusic, Maximize2, Shuffle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DesktopLyric } from '@renderer/common/icons';
 import { cn } from '@common/cn';
@@ -16,6 +16,7 @@ import {
     useCurrentMusic,
     usePlayerState,
     useRepeatMode,
+    usePlaybackSource,
 } from '@renderer/mainWindow/core/trackPlayer/hooks';
 import { REPEAT_MODE_MAP } from '@renderer/common/repeatModeMap';
 import { Artwork } from '../../ui/Artwork';
@@ -47,11 +48,16 @@ export default function PlayerBar() {
     const currentMusic = useCurrentMusic();
     const playerState = usePlayerState();
     const repeatMode = useRepeatMode();
+    const playbackSource = usePlaybackSource();
 
     const [enableDesktopLyric] = useConfigValue('lyric.enableDesktopLyric');
 
     const isPlaying = playerState === PlayerState.Playing;
     const hasMusic = currentMusic != null;
+
+    // 优先展示实际播放来源：自动换源后可能与歌曲原始平台不同
+    const displayPlatform = playbackSource?.platform ?? currentMusic?.platform;
+    const sourceFallback = playbackSource?.fallback ?? false;
 
     const { Icon: RepeatIcon, tipKey: repeatTipKey } = REPEAT_MODE_MAP[repeatMode];
 
@@ -91,11 +97,26 @@ export default function PlayerBar() {
                                             </span>
                                         </>
                                     )}
-                                    {currentMusic.platform && (
+                                    {displayPlatform && (
                                         <>
                                             <span className="l-player-bar__dot">·</span>
-                                            <span className="l-player-bar__source-badge">
-                                                {currentMusic.platform}
+                                            <span
+                                                className={cn(
+                                                    'l-player-bar__source-badge',
+                                                    sourceFallback && 'is-fallback',
+                                                )}
+                                                title={
+                                                    sourceFallback
+                                                        ? t('playback.source_fallback_hint', {
+                                                              original:
+                                                                  playbackSource?.originalPlatform,
+                                                              platform: displayPlatform,
+                                                          })
+                                                        : undefined
+                                                }
+                                            >
+                                                {sourceFallback && <Shuffle size={11} />}
+                                                {displayPlatform}
                                             </span>
                                         </>
                                     )}

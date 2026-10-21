@@ -29,6 +29,20 @@ export const qualityAtom: PrimitiveAtom<IMusic.IQualityKey> = atom<IMusic.IQuali
 export const currentLyricAtom: PrimitiveAtom<ICurrentLyric | null> = atom(
     null as ICurrentLyric | null,
 );
+
+/** 实际播放来源：自动换源后会与当前歌曲平台不同 */
+export interface IPlaybackSourceInfo {
+    /** 实际提供音频的平台 */
+    platform: string;
+    /** 是否为播放失败后的自动换源 */
+    fallback: boolean;
+    /** 原歌曲平台（自动换源时记录） */
+    originalPlatform?: string;
+}
+
+export const playbackSourceAtom: PrimitiveAtom<IPlaybackSourceInfo | null> = atom<IPlaybackSourceInfo | null>(
+    null as IPlaybackSourceInfo | null,
+);
 export const associatedLyricAtom: PrimitiveAtom<IMusic.IMusicItem | null> = atom(
     null as IMusic.IMusicItem | null,
 );

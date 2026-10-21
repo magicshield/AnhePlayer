@@ -15,6 +15,8 @@ import type {
     IGetMediaSourceResult,
     IPluginMetaAll,
 } from '@appTypes/infra/pluginManager';
+import { QUALITY_KEYS } from '@common/constant';
+import { tauriInvoke } from '@infra/tauriBridge/ipc';
 import { CONTEXT_BRIDGE_KEY } from '../common/constant';
 import { sortByPluginOrder } from '../common/sortByOrder';
 import { store, pluginsAtom, pluginMetaAtom, pluginAvailabilityAtom } from './store';
@@ -326,10 +328,10 @@ const adapters = {
 
 // ─── 音源可用性检测 ───
 
-/** 单次探测超时（毫秒） */
-const CHECK_TIMEOUT = 15_000;
+/** 单次探测超时（毫秒）：搜索 + 取播放地址 + 拉流校验 */
+const CHECK_TIMEOUT = 30_000;
 /** 并发探测数，避免同时打满多个音源接口 */
-const CHECK_CONCURRENCY = 3;
+const CHECK_CONCURRENCY = 2;
 /** 搜索探测关键词：热门歌手，正常音源必有结果 */
 const CHECK_SEARCH_QUERY = '周杰伦';
 
@@ -356,48 +358,159 @@ function withTimeout<T>(promise: Promise<T>, timeout = CHECK_TIMEOUT): Promise<T
     });
 }
 
-/** 选取插件的轻量探测方法；没有可探测接口时返回 null */
-function buildCheckCall(
-    plugin: IPlugin.IPluginDelegate,
-): { method: 'search' | 'getTopLists'; args: any[] } | null {
-    if (plugin.supportedMethod.includes('search')) {
-        return { method: 'search', args: [CHECK_SEARCH_QUERY, 1, 'music'] };
-    }
-    if (plugin.supportedMethod.includes('getTopLists')) {
-        return { method: 'getTopLists', args: [] };
-    }
-    return null;
+/**
+ * 无搜索能力的插件使用的固定测试歌曲。
+ * 字段与洛雪 musicInfo 对齐，插件按 hash/songmid/contentId 等取源。
+ */
+const TEST_MUSIC: Record<string, IMusic.IMusicItem> = {
+    wy: {
+        platform: 'wy',
+        id: '1357375695',
+        songmid: 1357375695,
+        title: '海阔天空',
+        artist: 'Beyond',
+        album: '乐与怒',
+    },
+    tx: {
+        platform: 'tx',
+        id: '001yS0N33yPm1B',
+        songmid: '001yS0N33yPm1B',
+        strMediaMid: '002MX8Ea4e5RDS',
+        title: '海阔天空',
+        artist: 'BEYOND',
+    },
+    kw: {
+        platform: 'kw',
+        id: '321946135',
+        songmid: 321946135,
+        hash: 'MUSIC_321946135',
+        title: '海阔天空',
+        artist: 'G.E.M.邓紫棋',
+    },
+    kg: {
+        platform: 'kg',
+        id: 'C41E80A18D1448FA47086372999C7F43',
+        hash: 'C41E80A18D1448FA47086372999C7F43',
+        songmid: 3261014,
+        title: '海阔天空',
+        artist: 'BEYOND',
+    },
+    mg: {
+        platform: 'mg',
+        id: '6005752DXKE',
+        songmid: '6005752DXKE',
+        copyrightId: '6005752DXKE',
+        contentId: '600913000009337537',
+        albumId: '1133556323',
+        title: '海阔天空',
+        artist: 'Beyond',
+    },
+} as unknown as Record<string, IMusic.IMusicItem>;
+
+/** 判断响应类型是否明显不是音频（错误页、JSON 报错体等） */
+function isNonAudioContentType(contentType: string): boolean {
+    const type = (contentType || '').toLowerCase();
+    if (!type) return false;
+    return (
+        type.startsWith('text/') ||
+        type.startsWith('image/') ||
+        type.includes('json') ||
+        type.includes('xml') ||
+        type.includes('html')
+    );
 }
 
-/** 检测单个插件：接口有正常返回即视为可用 */
+/**
+ * 拉流探活：只读取响应头和前 2KB，不下载完整音频。
+ * @returns 失败原因；可播放时返回 null
+ */
+async function probeMediaSource(media: IPlugin.IMediaSourceResult): Promise<string | null> {
+    const headers: Record<string, string> = { ...(media.headers || {}) };
+    if (media.userAgent) headers['user-agent'] = media.userAgent;
+
+    try {
+        const result = await tauriInvoke<{
+            statusCode: number;
+            contentType: string;
+            finalUrl: string;
+        }>('probe_media_url', { url: media.url, headers });
+
+        // 非 Tauri 环境（旧 Electron 构建）跳过探活，避免全部误判
+        if (!result) return null;
+
+        if (result.statusCode !== 200 && result.statusCode !== 206) {
+            return `播放地址返回 HTTP ${result.statusCode}`;
+        }
+        if (isNonAudioContentType(result.contentType)) {
+            return `播放地址返回的不是音频（${result.contentType.split(';')[0]}）`;
+        }
+        return null;
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return `播放地址无法访问：${message}`;
+    }
+}
+
+/**
+ * 检测单个平台音源是否真的能播放。
+ * 流程：搜索（或固定测试歌曲）→ 完整取源 → 拉流探活。
+ */
 async function checkSinglePlugin(hash: string): Promise<IPluginAvailabilityResult> {
     const plugin = getPluginByHash(hash);
     if (!plugin) {
         return { state: 'unavailable', message: '插件未加载', checkedAt: Date.now() };
     }
 
-    const call = buildCheckCall(plugin);
-    if (!call) {
+    // 没有取源能力（如纯搜索插件）无法判断播放能力
+    if (!plugin.supportedMethod.includes('getMediaSource')) {
         return { state: 'unsupported', checkedAt: Date.now() };
     }
 
     try {
-        const result = await withTimeout(
-            callPluginMethod({
-                hash,
-                method: call.method,
-                args: call.args,
-            } as ICallPluginMethodParams),
-        );
+        // 1. 优先用插件自己的搜索结果，得到字段完整的音乐项
+        let musicItem: IMusic.IMusicItem | null = null;
+        if (plugin.supportedMethod.includes('search')) {
+            try {
+                const searched = await withTimeout(
+                    callPluginMethod({
+                        hash,
+                        method: 'search',
+                        args: [CHECK_SEARCH_QUERY, 1, 'music'],
+                    } as ICallPluginMethodParams),
+                );
+                const list = Array.isArray(searched?.data)
+                    ? searched.data
+                    : Array.isArray(searched)
+                      ? searched
+                      : [];
+                musicItem = list.find((item: any) => item?.id) ?? null;
+            } catch {
+                // 搜索失败时回退固定测试歌曲
+            }
+        }
+        musicItem = musicItem ?? TEST_MUSIC[plugin.platform] ?? null;
+        if (!musicItem) {
+            return { state: 'unsupported', checkedAt: Date.now() };
+        }
 
-        // 正常接口一定会返回列表；空结果通常意味着接口已失效或插件吞掉了错误
-        const count = Array.isArray(result?.data)
-            ? result.data.length
-            : Array.isArray(result)
-              ? result.length
-              : 0;
-        if (count === 0) {
-            return { state: 'unavailable', message: '接口未返回结果', checkedAt: Date.now() };
+        // 2. 走与播放一致的取源链路（含官方源兜底），拿到真实播放地址
+        const media = await withTimeout(
+            adapters.getMediaSource({
+                hash,
+                musicItem,
+                quality: 'standard',
+                qualityOrder: QUALITY_KEYS,
+                qualityFallbackOrder: 'lower',
+            }),
+        );
+        if (!media?.url) {
+            return { state: 'unavailable', message: '未返回播放地址', checkedAt: Date.now() };
+        }
+
+        // 3. 拉流探活：HTTP 可访问且不是错误页 / JSON 才算可用
+        const failReason = await probeMediaSource(media);
+        if (failReason) {
+            return { state: 'unavailable', message: failReason, checkedAt: Date.now() };
         }
         return { state: 'available', checkedAt: Date.now() };
     } catch (err) {

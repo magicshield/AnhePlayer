@@ -13,6 +13,7 @@ import {
     qualityAtom,
     currentLyricAtom,
     associatedLyricAtom,
+    playbackSourceAtom,
 } from './store';
 
 export const useCurrentMusic = () => useAtomValue(currentMusicAtom);
@@ -25,3 +26,4 @@ export const useVolume = () => useAtomValue(volumeAtom);
 export const useSpeed = () => useAtomValue(speedAtom);
 export const useQuality = () => useAtomValue(qualityAtom);
 export const useAssociatedLyric = () => useAtomValue(associatedLyricAtom);
+export const usePlaybackSource = () => useAtomValue(playbackSourceAtom);

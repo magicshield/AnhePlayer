@@ -86,6 +86,7 @@ pub fn run() {
             fs_rename,
             // HTTP Request / Forwarder
             http_request,
+            probe_media_url,
             forwarder_get_port,
             // Local Music
             local_scan_dir,

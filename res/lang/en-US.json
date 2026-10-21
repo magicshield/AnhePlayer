@@ -133,7 +133,9 @@
         "play_or_pause": "Play/Pause",
         "repeat_mode": "Repeat Mode",
         "collapse_player_detail": "Collapse player details",
-        "play_all": "Play All"
+        "play_all": "Play All",
+        "source_fallback_hint": "The original source \"{{original}}\" is unavailable. Switched to \"{{platform}}\"; playback may differ from the original track.",
+        "source_fallback_toast": "\"{{original}}\" is unavailable. Switched to \"{{platform}}\"; playback may differ from the original track."
     },
     "lyric": {
         "search": "Search Lyrics",

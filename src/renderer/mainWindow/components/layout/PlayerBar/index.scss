@@ -96,6 +96,9 @@
     }
 
     &__source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
         font-size: var(--text-badge-size);
         font-weight: var(--font-weight-medium);
         // 设计稿 text-white/35 — 最接近令牌 disabled(0.30)
@@ -107,6 +110,12 @@
         white-space: nowrap;
         vertical-align: middle;
         flex-shrink: 0;
+
+        // 自动换源：用警示色提示实际来源与歌曲原平台不同
+        &.is-fallback {
+            color: var(--color-status-warn-text);
+            border-color: var(--color-status-warn-border);
+        }
     }
 
     &__actions {
