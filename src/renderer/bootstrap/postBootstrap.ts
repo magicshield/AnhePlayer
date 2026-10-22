@@ -12,7 +12,7 @@ import appConfig from '@infra/appConfig/renderer';
 import pluginManager from '@infra/pluginManager/renderer';
 import systemUtil from '@infra/systemUtil/renderer';
 import { syncKV } from '@renderer/common/kvStore';
-import { showModal } from '@renderer/mainWindow/components/ui/Modal/modalManager';
+import { setPendingUpdate } from '@renderer/mainWindow/common/updateNotice';
 import { checkLegacyMigration } from '@renderer/mainWindow/core/legacyMigration';
 
 export function runPostBootstrapTasks(): void {
@@ -45,7 +45,8 @@ function checkAppUpdate(): void {
                 return;
             }
 
-            showModal('UpdateModal', { updateInfo: info.update });
+            // 只更新左上角角标，不主动弹窗打断播放；用户点击角标后再查看详情。
+            setPendingUpdate(info.update);
         })
         .catch((err) => {
             console.error('[PostBootstrap] Check app update failed:', err);

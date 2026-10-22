@@ -19,6 +19,8 @@
     &__logo {
         display: flex;
         align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
         padding: 0 var(--space-4) 0 var(--space-3);
         margin-bottom: var(--space-8);
         -webkit-app-region: drag;
@@ -32,6 +34,27 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    &__update-trigger {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+
+        &:focus-visible {
+            outline: 2px solid var(--color-border-brand);
+            outline-offset: 2px;
+            border-radius: var(--radius-pill);
+        }
+
+        &:hover {
+            filter: brightness(1.08);
+        }
     }
 
     // ── 导航 ──

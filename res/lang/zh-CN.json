@@ -56,6 +56,7 @@
         "nav_main": "主导航",
         "component_showcase": "组件展示 (Dev)",
         "new_version_found": "发现新版本 (v{{version}})",
+        "update_badge": "新版",
         "skip_version": "不再提示此版本",
         "go_download": "前往下载",
         "download_link": "下载地址 {{index}}",

@@ -6,6 +6,7 @@ import { CheckboxGroup } from '@renderer/mainWindow/components/ui/CheckboxGroup'
 import { syncKV } from '@renderer/common/kvStore';
 import systemUtil from '@infra/systemUtil/renderer';
 import type { IUpdateInfo } from '@appTypes/infra/systemUtil';
+import { clearPendingUpdate } from '@renderer/mainWindow/common/updateNotice';
 import './index.scss';
 
 export interface UpdateModalProps {
@@ -35,6 +36,7 @@ export default function UpdateModal({ close, updateInfo }: UpdateModalProps) {
             setSkipChecked(checked);
             if (checked) {
                 syncKV.set('update.skipVersion', version);
+                clearPendingUpdate();
             } else {
                 syncKV.remove('update.skipVersion');
             }
@@ -44,6 +46,7 @@ export default function UpdateModal({ close, updateInfo }: UpdateModalProps) {
 
     const handleDownload = useCallback(
         (url: string) => {
+            clearPendingUpdate();
             systemUtil.openExternal(url);
             close();
         },

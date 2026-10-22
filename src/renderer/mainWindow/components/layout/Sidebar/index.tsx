@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { useCallback } from 'react';
+import { useAtomValue } from 'jotai/react';
 import { useTranslation } from 'react-i18next';
 import {
     Clock,
@@ -24,8 +25,10 @@ import { useNavigate, useLocation } from 'react-router';
 import { useMusicSheetList, useStarredSheets } from '@infra/musicSheet/renderer';
 import systemUtil from '@infra/systemUtil/renderer';
 import { showModal } from '../../ui/Modal/modalManager';
+import Badge from '../../ui/Badge';
 import { RoutePaths } from '../../../routes';
 import type { RoutePath } from '../../../routes';
+import { pendingUpdateAtom } from '@renderer/mainWindow/common/updateNotice';
 import LocalSheetNavItem from './LocalSheetNavItem';
 import StarredSheetNavItem from './StarredSheetNavItem';
 import './index.scss';
@@ -45,6 +48,7 @@ export default function Sidebar() {
     const location = useLocation();
     const sheets = useMusicSheetList();
     const starredSheets = useStarredSheets();
+    const pendingUpdate = useAtomValue(pendingUpdateAtom);
 
     /** 当前路径的第一段，用于匹配静态导航项高亮 */
     const activeSegment = location.pathname.split('/')[1] ?? '';
@@ -58,11 +62,30 @@ export default function Sidebar() {
         showModal('PluginImportModal', { type: 'importMusicSheet' });
     }, []);
 
+    const handleUpdateClick = useCallback(() => {
+        if (!pendingUpdate) return;
+
+        showModal('UpdateModal', { updateInfo: pendingUpdate });
+    }, [pendingUpdate]);
+
     return (
         <aside className="l-sidebar">
             {/* ── Logo ── */}
             <div className="l-sidebar__logo" aria-label={BRAND_NAME} title={BRAND_NAME}>
                 <span className="l-sidebar__logo-text">{BRAND_NAME}</span>
+                {pendingUpdate && (
+                    <button
+                        className="l-sidebar__update-trigger"
+                        type="button"
+                        title={t('app.new_version_found', { version: pendingUpdate.version })}
+                        aria-label={t('app.new_version_found', { version: pendingUpdate.version })}
+                        onClick={handleUpdateClick}
+                    >
+                        <Badge variant="tint" colorScheme="warn">
+                            {t('app.update_badge')}
+                        </Badge>
+                    </button>
+                )}
             </div>
 
             {/* ── 导航列表 ── */}
