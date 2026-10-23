@@ -100,10 +100,3 @@ export function closeModal(name?: string): void {
         store.set(modalStackAtom, current.slice(0, -1));
     }
 }
-
-/**
- * 关闭所有弹窗。
- */
-export function closeAllModals(): void {
-    store.set(modalStackAtom, []);
-}

@@ -1,12 +1,12 @@
 /**
- * pluginManager — getMediaSource 适配器（主进程）
+ * pluginManager — getMediaSource 适配器（Tauri bridge runtime）
  *
- * 在主进程中实现音质回退和重试逻辑：
+ * 在 Tauri bridge runtime 中实现音质回退和重试逻辑：
  * 1. 按音质偏好顺序依次尝试
  * 2. 每个音质尝试 2 次（初次 + 150ms 延迟重试）
  * 3. normalizer 返回 null 表示该音质不可用，跳过重试直接下一个音质
  *
- * 此适配器在主进程运行，直接调用 callPluginMethod（无 IPC 开销）。
+ * 此适配器直接调用 callPluginMethod（无额外 bridge 调用开销）。
  */
 
 import type {
@@ -67,8 +67,8 @@ export interface IGetMediaSourceAdapterParams extends IGetMediaSourceParams {
 }
 
 /**
- * getMediaSource 适配器（主进程版本）。
- * 直接调用 callPluginMethod，无 IPC 开销。
+ * getMediaSource 适配器。
+ * 直接调用 callPluginMethod，无额外 bridge 调用开销。
  *
  * 流程：
  * - 按音质优先级顺序依次尝试

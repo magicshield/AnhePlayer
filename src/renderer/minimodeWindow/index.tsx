@@ -5,15 +5,13 @@ import { createRoot } from 'react-dom/client';
 
 import bootstrapAuxiliaryWindow from '../bootstrap/auxiliaryWindow';
 import App from './App';
-import { initTauriBridges } from '@infra/tauriBridge';
 
 document.body.dataset.window = 'minimode';
 
 const container = document.getElementById('root')!;
 const root = createRoot(container);
 
-initTauriBridges()
-    .then(() => bootstrapAuxiliaryWindow())
+bootstrapAuxiliaryWindow()
     .then(() => {
         root.render(
             <StrictMode>

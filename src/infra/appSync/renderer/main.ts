@@ -1,10 +1,9 @@
 /**
  * appSync — 主窗口 Renderer 层
  *
- * 提供类型安全的 API，封装 preload 暴露的原始接口。
+ * 提供类型安全的窗口间同步 API。
  */
-import type { IAppState, ICommand } from '@appTypes/infra/appSync';
-import type { WindowType } from '@appTypes/main/windowManager';
+import type { IAppState, ICommand, WindowType } from '@appTypes/infra/appSync';
 import { CONTEXT_BRIDGE_KEY } from '../common/constant';
 
 interface IMod {
@@ -18,7 +17,7 @@ interface IMod {
 const mod = window[CONTEXT_BRIDGE_KEY as any] as unknown as IMod;
 
 const appSync = {
-    /** 同步应用状态到主进程和辅助窗口 */
+    /** 同步应用状态到辅助窗口 */
     syncAppState(state: Partial<IAppState>): void {
         mod.syncAppState(state);
     },

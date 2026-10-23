@@ -17,7 +17,7 @@ const store = getDefaultStore();
 
 // ─── 类型 ───
 
-/** IMusicItem + folder（由主进程 toMusicItem 附加） */
+/** IMusicItem + folder（由 Rust 侧 toMusicItem 附加） */
 export type LocalMusicItem = IMusic.IMusicItem & { folder: string };
 
 export interface ArtistAggregation {

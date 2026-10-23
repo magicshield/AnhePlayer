@@ -1,28 +1,15 @@
 /**
- * AppSync - 跨进程应用状态同步与指令派发
- *
- * 数据流向:
- *
- *   ┌──────────────────────────────────────────────────┐
- *   │             Main Window Renderer                  │
- *   │          (AppState source of truth)               │
- *   └──────┬────────────────────────────┬──────────────┘
- *          │ syncAppState               │ syncAppState
- *          │ ipcRenderer.send           │ MessagePort (按订阅过滤)
- *          ▼                            ▼
- *    Main Process                 Auxiliary Windows
- *    (部分副本)                    (lyric, minimode)
- *
- * Command 流向:
- *   Any window / Main Process  ──→  Main Window Renderer
+ * 跨窗口应用状态同步与指令派发类型
  */
 
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import type { PlayerState, RepeatMode } from '@common/constant';
 import type { IParsedLrcItem } from '@common/lyricParser';
 
+export type WindowType = 'main' | 'lyric' | 'minimode';
+
 /**
- * 跨进程同步的应用状态。
+ * 跨窗口同步的应用状态。
  *
  * 所有需要跨窗口同步的状态直接在此接口声明，不使用 declaration merging。
  */
@@ -39,7 +26,7 @@ export interface IAppState {
 export type AppStateType = keyof IAppState;
 
 /**
- * 跨进程指令定义。
+ * 跨窗口指令定义。
  * Key = 指令名（kebab-case）, Value = 指令参数类型。
  *
  * 通过 declaration merging 扩展此接口来添加指令：
@@ -64,7 +51,7 @@ export interface ICommand {
     'like/dislike': void;
     'toggle-minimode': void;
 
-    // ─── Tray Actions ───
+    // ─── Window and navigation actions ───
     'set-repeat-mode': RepeatMode;
     navigate: string;
     'open-music-detail': void;

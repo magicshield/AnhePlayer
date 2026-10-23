@@ -2,7 +2,7 @@
  * TrackPlayer — 编排层（单例，唯一对外 API）
  *
  * 协调 AudioController、PlayQueue、LyricManager 三大子模块，
- * 通过 jotai atoms 驱动 UI，通过 AppSync 同步状态到辅助窗口和主进程。
+ * 通过 jotai atoms 驱动 UI，通过 AppSync 同步状态到辅助窗口和 Tauri bridge。
  */
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import { PlayerState, RepeatMode, QUALITY_KEYS } from '@common/constant';
@@ -337,7 +337,7 @@ class TrackPlayer {
      * 替换队列并播放。统一接口，不区分本地/远程歌单。
      * @param list       歌曲列表（IMusicItem 或 IMusicItemSlim）
      * @param options.startItem    起始播放歌曲
-     * @param options.fromSheetId  可选性能优化提示：若来自某本地歌单，主进程用 INSERT...SELECT
+     * @param options.fromSheetId  可选性能优化提示：若来自某本地歌单，Rust 侧用 INSERT...SELECT
      */
     async playMusicWithReplaceQueue(
         list: (IMusic.IMusicItem | IMusicItemSlim)[],

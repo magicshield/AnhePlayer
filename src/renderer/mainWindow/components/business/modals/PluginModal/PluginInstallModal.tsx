@@ -7,7 +7,6 @@ import { Input } from '@renderer/mainWindow/components/ui/Input';
 import { showToast } from '@renderer/mainWindow/components/ui/Toast';
 import pluginManager from '@infra/pluginManager/renderer';
 import systemUtil from '@infra/systemUtil/renderer';
-import fsUtil from '@infra/fsUtil/renderer';
 import { cn } from '@common/cn';
 import './index.scss';
 
@@ -152,13 +151,7 @@ export default function PluginInstallModal({ close }: PluginInstallModalProps) {
                 });
                 return;
             }
-            const realPath = fsUtil.getPathForFile(pluginFile);
-            if (realPath) {
-                await installFromPath(realPath);
-            } else {
-                // WebView2 拖拽的 File 没有磁盘路径，直接读取内容安装
-                await installFromCode(await pluginFile.text());
-            }
+            await installFromCode(await pluginFile.text());
         },
         [installFromPath, installFromCode, t],
     );

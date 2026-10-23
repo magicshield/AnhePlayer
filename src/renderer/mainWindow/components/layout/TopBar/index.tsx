@@ -159,7 +159,7 @@ export default function TopBar() {
     return (
         <header className="l-topbar">
             {/* ── 拖拽区域 ── */}
-            <div className="l-topbar__drag-region" />
+            <div className="l-topbar__drag-region" data-tauri-drag-region />
 
             {/* ── 左侧: 导航按钮 ── */}
             <div className="l-topbar__nav">

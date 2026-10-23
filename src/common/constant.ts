@@ -42,17 +42,6 @@ export enum LogLevel {
     Error = 'error',
 }
 
-// 主进程的Resource
-export enum ResourceName {
-    SKIP_LEFT_ICO = 'skip-left.ico',
-    SKIP_RIGHT_ICO = 'skip-right.ico',
-    PAUSE_ICO = 'pause.ico',
-    PLAY_ICO = 'play.ico',
-    LOGO_ICO = 'logo.ico',
-    DEFAULT_ALBUM_COVER_IMAGE = 'album-cover.jpeg',
-    LOGO_IMAGE = 'logo.png',
-}
-
 /**
  * RequestStatus — 通用请求/加载状态枚举
  *

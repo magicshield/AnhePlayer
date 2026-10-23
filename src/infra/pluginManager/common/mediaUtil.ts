@@ -2,7 +2,7 @@
  * pluginManager — 媒体项工具函数
  *
  * 提供 resetMediaItem（输出清洗）和 cleanMediaInput（输入清洗）等通用函数。
- * 在 main 和 renderer 进程中均可使用。
+ * 在 bridge runtime 和 renderer 代码中均可使用。
  */
 
 /**

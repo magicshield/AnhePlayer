@@ -1,5 +1,13 @@
 import type { IShortCutMap } from '@appTypes/infra/shortCut';
-import type { ISize, IPoint } from '../windowDrag';
+interface IPoint {
+    x: number;
+    y: number;
+}
+
+interface ISize {
+    width: number;
+    height: number;
+}
 
 /** 可序列化的音频输出设备信息（替代不可序列化的 MediaDeviceInfo） */
 export interface IAudioOutputDevice {
@@ -13,10 +21,7 @@ interface _IAppConfig {
     'normal.closeBehavior': 'exit_app' | 'minimize';
     'normal.maxHistoryLength': number;
     'normal.checkUpdate': boolean;
-    'normal.taskbarThumb': 'window' | 'artwork';
     'normal.musicListHideColumns': Array<'duration' | 'platform'>;
-    /** [win10+] 使用自定义原生托盘菜单 */
-    'normal.useCustomTrayMenu': boolean;
     'normal.language': string;
 
     /** 歌单内搜索区分大小写 */
@@ -55,8 +60,6 @@ interface _IAppConfig {
 
     /** 是否启用本地快捷键 */
     'shortCut.enableLocal': boolean;
-    /** 是否启用全局快捷键 */
-    'shortCut.enableGlobal': boolean;
     /** 快捷键映射 */
     'shortCut.shortcuts': IShortCutMap;
 
@@ -75,13 +78,6 @@ interface _IAppConfig {
     'plugin.autoUpdatePlugin': boolean;
     /** 是否不检测插件版本 */
     'plugin.notCheckPluginVersion': boolean;
-
-    /** 是否启用代理 */
-    'network.proxy.enabled': boolean;
-    'network.proxy.host': string;
-    'network.proxy.port': string;
-    'network.proxy.username': string;
-    'network.proxy.password': string;
 
     /** 恢复歌单时行为 */
     'backup.resumeBehavior': 'append' | 'overwrite';
@@ -118,7 +114,7 @@ export type ConfigSource = 'main' | 'renderer';
  *
  * 用于其他 infra 模块通过 setup 注入来消费配置，
  * 而无需直接 import appConfig 单例。
- * main 和 renderer 侧均使用此接口。
+ * bridge 与 renderer 侧均使用此接口。
  */
 export interface IAppConfigReader {
     getConfig(): IAppConfig;

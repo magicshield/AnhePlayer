@@ -15,7 +15,7 @@ import formatFileSize from '@common/formatFileSize';
  * 常规设置
  *
  * 配置项：checkUpdate、closeBehavior、language、maxHistoryLength、
- *         taskbarThumb、musicListHideColumns、缓存
+ *         musicListHideColumns、缓存
  */
 export function GeneralSection() {
     const { t } = useTranslation();
@@ -23,9 +23,7 @@ export function GeneralSection() {
     const [closeBehavior, setCloseBehavior] = useConfigValue('normal.closeBehavior');
     const [language, setLanguage] = useConfigValue('normal.language');
     const [maxHistory, setMaxHistory] = useConfigValue('normal.maxHistoryLength');
-    const [taskbarThumb, setTaskbarThumb] = useConfigValue('normal.taskbarThumb');
     const [columnsHidden, setColumnsHidden] = useConfigValue('normal.musicListHideColumns');
-    const [useCustomTrayMenu, setUseCustomTrayMenu] = useConfigValue('normal.useCustomTrayMenu');
 
     const langNames = useLangNames();
     const [cacheSize, setCacheSize] = useState('--');
@@ -133,22 +131,6 @@ export function GeneralSection() {
                     />
                 }
             />
-            {window.globalContext.platform === 'win32' && (
-                <SettingRow
-                    label={t('settings.general.taskbar_thumb_label')}
-                    description={t('settings.general.taskbar_thumb_desc')}
-                    control={
-                        <Select
-                            value={taskbarThumb ?? 'window'}
-                            onChange={setTaskbarThumb}
-                            options={[
-                                { value: 'window', label: t('settings.general.taskbar_window') },
-                                { value: 'artwork', label: t('settings.general.taskbar_artwork') },
-                            ]}
-                        />
-                    }
-                />
-            )}
             <SettingRow
                 label={t('settings.general.hide_columns_label')}
                 description={t('settings.general.hide_columns_desc')}
@@ -163,18 +145,6 @@ export function GeneralSection() {
                     />
                 }
             />
-            {window.globalContext.isWin10OrAbove && (
-                <SettingRow
-                    label={t('settings.general.custom_tray_menu_label')}
-                    description={t('settings.general.custom_tray_menu_desc')}
-                    control={
-                        <Toggle
-                            checked={useCustomTrayMenu ?? false}
-                            onChange={setUseCustomTrayMenu}
-                        />
-                    }
-                />
-            )}
             <SettingRow
                 label={t('settings.general.cache_label')}
                 description={t('settings.general.cache_desc')}

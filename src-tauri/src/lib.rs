@@ -2,7 +2,7 @@ mod commands;
 
 use commands::{
     app_config::*, audio_tag::*, dialog::*, download::*, forwarder::*, fs_util::*,
-    global_context::*, http_proxy::*, local_meta::*, netease::*, plugin_store::*, system_util::*,
+    global_context::*, http_proxy::*, local_meta::*, netease::*, system_util::*,
     webdav::*,
 };
 use tauri::{
@@ -11,7 +11,7 @@ use tauri::{
     AppHandle, Manager, WindowEvent,
 };
 
-/// 从配置文件读取关闭行为（与 Electron 端 `normal.closeBehavior` 保持一致）
+/// 从配置文件读取关闭行为。
 fn read_close_behavior() -> String {
     let path = dirs::config_dir()
         .map(|d| d.join("AnhePlayer").join("app-config.json"))
@@ -100,10 +100,6 @@ pub fn run() {
             webdav_test,
             webdav_put,
             webdav_get,
-            // Plugin Store
-            plugin_save,
-            plugin_delete,
-            plugin_load_all,
             // NetEase Account（登录窗口与带 Cookie 请求）
             netease_login_open,
             netease_login_wait,

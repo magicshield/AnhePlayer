@@ -1,5 +1,5 @@
 /**
- * data 层：downloadManager 的 Tauri/JS 实现（对齐 Electron 主进程语义）
+ * data 层：downloadManager 的 Tauri/JS 实现
  *
  * 存储：<userData>/anhe-player-data/download-tasks.json
  * - 任务生命周期：pending → downloading → completed（完成后删除任务行，写入
@@ -333,7 +333,7 @@ class DownloadStore {
     }
 
     /**
-     * 嵌入封面/歌词标签（对齐 Electron embedMetadata 语义）
+     * 嵌入封面/歌词标签
      * - 封面上抛 artwork URL，由 Rust 侧直接下载（http_request 仅支持文本，二进制走不了）；
      *   封面取自 musicItem.artwork（网络 URL），歌词经插件适配器取 rawLrc
      * - 失败仅告警，不影响已完成的下载

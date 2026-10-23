@@ -1,15 +1,16 @@
 /**
  * Tauri 桥接：基础通用模块
- * （logger / i18n / shortCut / requestForwarder / appSync / windowDrag）
+ * （logger / i18n / requestForwarder / appSync）
  *
  * 注：themepack 已拆分至独立模块 themepackBridge.ts
  */
 import { CONTEXT_BRIDGE_KEY as LOGGER_KEY } from '@infra/logger/common/constant';
 import { CONTEXT_BRIDGE_KEY as I18N_KEY } from '@infra/i18n/common/constant';
-import { CONTEXT_BRIDGE_KEY as SHORTCUT_KEY } from '@infra/shortCut/common/constant';
 import { CONTEXT_BRIDGE_KEY as FORWARDER_KEY } from '@infra/requestForwarder/common/constant';
-import { CONTEXT_BRIDGE_KEY as APP_SYNC_KEY, CONTEXT_BRIDGE_KEY_AUXILIARY } from '@infra/appSync/common/constant';
-import { CONTEXT_BRIDGE_KEY as WINDOW_DRAG_KEY } from '@infra/windowDrag/common/constant';
+import {
+    CONTEXT_BRIDGE_KEY as APP_SYNC_KEY,
+    CONTEXT_BRIDGE_KEY_AUXILIARY,
+} from '@infra/appSync/common/constant';
 import zhCN from '../../../../res/lang/zh-CN.json';
 import { tauriInvoke, tauriListen, tauriEmit } from '../ipc';
 import EventEmitter from 'eventemitter3';
@@ -42,23 +43,7 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 3. ShortCut（Tauri 版暂不支持全局快捷键，返回空列表保持接口兼容）
-    (window as any)[SHORTCUT_KEY] = {
-        getGlobalShortCutStatus: async (): Promise<any[]> => [],
-        onGlobalShortCutStatusChanged: (callback: (status: any) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen('shortcut-status-changed', (data) => {
-                callback(data);
-            }).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
-        },
-    };
-
-    // 4. Request Forwarder (Tauri 架构下请求直接走 Tauri HTTP 或直接网络请求)
+    // 3. Request Forwarder (Tauri 架构下请求直接走 Tauri HTTP 或直接网络请求)
     (window as any)[FORWARDER_KEY] = {
         getPort: async () => {
             try {
@@ -80,7 +65,7 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 5. AppSync（主窗口与辅助窗口同步桥接）
+    // 4. AppSync（主窗口与辅助窗口同步桥接）
     (window as any)[APP_SYNC_KEY] = {
         syncAppState: (state: any) => {
             tauriEmit('tauri-app-state-sync', state).catch(() => {});
@@ -119,7 +104,7 @@ export function registerCommonBridges(): void {
         },
     };
 
-    // 7. AppSync Auxiliary（辅助窗口专属）
+    // 5. AppSync Auxiliary（辅助窗口专属）
     (window as any)[CONTEXT_BRIDGE_KEY_AUXILIARY] = {
         subscribe: (_keys: string[], _onStateChange: (state: any) => void) => {
             return () => {};
@@ -140,11 +125,5 @@ export function registerCommonBridges(): void {
                 if (unlistenFn) unlistenFn();
             };
         },
-    };
-
-    // 8. WindowDrag（窗口拖拽）
-    (window as any)[WINDOW_DRAG_KEY] = {
-        startDrag: (_offset: any) => {},
-        stopDrag: () => {},
     };
 }

@@ -1,7 +1,7 @@
 /**
  * Tauri 桥接：pluginManager — getLyric 适配器（渲染进程版）
  *
- * 由 src/infra/pluginManager/main/getLyricAdapter.ts 移植：
+ * 由旧版歌词适配器移植：
  * - fs（本地 .lrc 读取）→ Tauri fs_is_file / fs_read_file 命令
  * - axios（lrcUrl 抓取）→ Tauri http_request（带原生 fetch 回退）
  * - path 操作 → 轻量字符串工具（Windows 路径语义）
@@ -37,7 +37,11 @@ export interface ILyricMediaMetaProvider {
         platform: string,
         musicId: string,
     ): Promise<IMediaMeta['associatedLyric'] | null> | IMediaMeta['associatedLyric'] | null;
-    setMeta(platform: string, musicId: string, patch: { associatedLyric?: IMediaMeta['associatedLyric'] }): Promise<void> | void;
+    setMeta(
+        platform: string,
+        musicId: string,
+        patch: { associatedLyric?: IMediaMeta['associatedLyric'] },
+    ): Promise<void> | void;
 }
 
 /** 曲库查询依赖：从 musicSheet 取 raw JSON 补充 localPath */
@@ -167,7 +171,7 @@ async function getLocalPath(
 
 /**
  * getLyric 适配器（Tauri 渲染进程版）。
- * 按 Electron 主进程版 getLyricAdapter 的逻辑，依次尝试多种获取方式。
+ * 依次尝试多种歌词获取方式。
  */
 export async function getLyricAdapterWeb(
     params: IGetLyricParams,

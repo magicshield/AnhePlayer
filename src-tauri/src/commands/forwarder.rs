@@ -1,4 +1,4 @@
-// 本地请求转发代理（对齐 Electron 版 requestForwarder 的 URL 契约）。
+// 本地请求转发代理，保持前端 requestForwarder 的 URL 契约。
 //
 // 契约：GET http://127.0.0.1:<port>/?url=<encoded>&headers=<JSON encoded>
 //   - url 与 headers 均为 x-www-form-urlencoded 编码（URLSearchParams.toString()），

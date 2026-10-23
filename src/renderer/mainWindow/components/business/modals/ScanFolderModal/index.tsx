@@ -6,7 +6,7 @@
  *   - 添加新文件夹（通过系统文件对话框，仅修改本地状态）
  *   - 移除已有文件夹（仅修改本地状态）
  *   - 点击"开始扫描"后，fire-and-forget 提交文件夹列表并关闭弹窗
- *   - 主进程负责计算 diff（增删）并触发扫描
+ *   - Rust 侧负责计算 diff（增删）并触发扫描
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -71,7 +71,7 @@ export default function ScanFolderModal({ close }: ScanFolderModalProps) {
         return (appConfig.getConfigByKey('localMusic.minDurationSec') ?? 0) === 60;
     });
 
-    // ── 初始化：从主进程加载已持久化的文件夹列表 → 拷贝到本地状态 ──
+    // ── 初始化：从 Rust 侧加载已持久化的文件夹列表 → 拷贝到本地状态 ──
     useEffect(() => {
         let cancelled = false;
         (async () => {

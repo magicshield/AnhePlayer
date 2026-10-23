@@ -1,9 +1,9 @@
 /**
  * Tauri 桥接：pluginManager（完整实现）
  *
- * 在渲染进程中复刻 Electron 主进程版插件管理器的全部能力：
+ * 在渲染进程中提供插件管理器能力：
  * - 插件沙箱：每个插件文件一个 Web Worker（见 worker/lxPluginHost）
- * - 存储布局与 Electron 版一致：<userData>/anhe-player-plugins/<nanoid>.js
+ * - 插件存储于 <userData>/anhe-player-plugins/<nanoid>.js
  *   以及 <userData>/.plugin-meta.json、<userData>/.plugin-cache.json
  * - 安装/卸载/更新/批量更新、meta 持久化、默认排序、音源重定向
  * - 内置「本地」插件（bridges/pluginManager/localPlugin.ts）
@@ -103,9 +103,7 @@ async function computeHash(text: string): Promise<string> {
             h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
             h2 = Math.imul(h2 ^ (c + i), 0x01000193) >>> 0;
         }
-        return (
-            h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')
-        ).repeat(2);
+        return (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).repeat(2);
     }
 }
 
@@ -336,7 +334,11 @@ class TauriPluginManagerService {
             return rawDelegates.map((raw) => {
                 const platform = String(raw.platform ?? '');
                 const hash = `${sourceHash}:${platform}`;
-                const delegate = { ...(raw as any), hash, path: filePath } as IPlugin.IPluginDelegate;
+                const delegate = {
+                    ...(raw as any),
+                    hash,
+                    path: filePath,
+                } as IPlugin.IPluginDelegate;
                 return {
                     hash,
                     sourceHash,
@@ -510,11 +512,7 @@ class TauriPluginManagerService {
                     if (
                         existingEntry.delegate.version &&
                         nextEntry?.delegate.version &&
-                        compare(
-                            existingEntry.delegate.version,
-                            nextEntry.delegate.version,
-                            '>',
-                        )
+                        compare(existingEntry.delegate.version, nextEntry.delegate.version, '>')
                     ) {
                         // 回滚：删除刚写入的文件
                         loadedPlugins[0].host?.terminate();
@@ -1057,8 +1055,9 @@ export function registerTauriPluginManagerBridge(): void {
         getAllPlugins: () => service.getAllPlugins(),
         setPluginMeta: (hash: string, meta: Partial<IPlugin.IPluginMeta>) =>
             service.setPluginMeta(hash, meta),
-        batchSetPluginMeta: (updates: Array<{ hash: string; meta: Partial<IPlugin.IPluginMeta> }>) =>
-            service.batchSetPluginMeta(updates),
+        batchSetPluginMeta: (
+            updates: Array<{ hash: string; meta: Partial<IPlugin.IPluginMeta> }>,
+        ) => service.batchSetPluginMeta(updates),
         getAllPluginMeta: () => service.getAllPluginMeta(),
         getCachedPlugins: () => service.getCachedPlugins(),
         getLyric: (musicItem: IMusic.IMusicItem) => service.getLyric(musicItem),

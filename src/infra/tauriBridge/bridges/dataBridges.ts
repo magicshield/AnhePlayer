@@ -3,7 +3,7 @@
  * 覆盖：musicSheet / mediaMeta / downloadManager / localMusic / backup
  *
  * 架构说明：Tauri 版为纯 JS 实现（数据落盘于 <userData>/anhe-player-data/*.json），
- * 行为语义严格对齐 Electron 主进程版本（SQLite → 内存 + JSON 持久化）。
+ * 行为语义使用内存 + JSON 持久化。
  * 事件（music-sheet-event / media-meta-changed / download 进度与任务事件 /
  * localMusic 进度与库变更 / backup 进度）均通过本地监听器回调传递，
  * 因为所有消费方与桥同处一个渲染进程上下文。
@@ -33,8 +33,7 @@ export function registerDataBridges(): void {
             musicSheetStore.addMusic(sheetId, musicItems),
         removeMusic: (sheetId: string, musicBases: any[]) =>
             musicSheetStore.removeMusic(sheetId, musicBases),
-        removeFromAllSheets: (musicBases: any[]) =>
-            musicSheetStore.removeFromAllSheets(musicBases),
+        removeFromAllSheets: (musicBases: any[]) => musicSheetStore.removeFromAllSheets(musicBases),
         updateMusicOrder: (sheetId: string, orderedKeys: any[]) =>
             musicSheetStore.updateMusicOrder(sheetId, orderedKeys),
         getRawMusicItem: (platform: string, id: string) =>
@@ -43,10 +42,8 @@ export function registerDataBridges(): void {
 
         getStarredSheets: () => musicSheetStore.getStarredSheets(),
         starSheet: (sheet: any) => musicSheetStore.starSheet(sheet),
-        unstarSheet: (platform: string, id: string) =>
-            musicSheetStore.unstarSheet(platform, id),
-        setStarredOrder: (orderedKeys: any[]) =>
-            musicSheetStore.setStarredOrder(orderedKeys),
+        unstarSheet: (platform: string, id: string) => musicSheetStore.unstarSheet(platform, id),
+        setStarredOrder: (orderedKeys: any[]) => musicSheetStore.setStarredOrder(orderedKeys),
 
         playQueueGetAll: () => musicSheetStore.playQueueGetAll(),
         playQueueSet: (items: any[], fromSheetId?: string) =>
@@ -61,8 +58,7 @@ export function registerDataBridges(): void {
 
     // 2. Media Meta Bridge
     (window as any)[META_KEY] = {
-        getMeta: (platform: string, musicId: string) =>
-            mediaMetaStore.getMeta(platform, musicId),
+        getMeta: (platform: string, musicId: string) => mediaMetaStore.getMeta(platform, musicId),
         batchGetMeta: (keys: any[]) => mediaMetaStore.batchGetMeta(keys),
         setMeta: (platform: string, musicId: string, patch: any) =>
             mediaMetaStore.setMeta(platform, musicId, patch),
@@ -95,8 +91,7 @@ export function registerDataBridges(): void {
     (window as any)[LOCAL_KEY] = {
         getAllMusicItems: () => localMusicStore.getAllMusicItems(),
         getScanFolders: () => localMusicStore.getScanFolders(),
-        syncScanFolders: (folderPaths: string[]) =>
-            localMusicStore.syncScanFolders(folderPaths),
+        syncScanFolders: (folderPaths: string[]) => localMusicStore.syncScanFolders(folderPaths),
         deleteItems: (musicBases: any[]) => localMusicStore.deleteItems(musicBases),
         onLibraryChanged: (cb: () => void) => localMusicStore.onLibraryChanged(cb),
         onScanProgress: (cb: (progress: any) => void) => localMusicStore.onScanProgress(cb),

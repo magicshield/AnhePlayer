@@ -2,15 +2,15 @@
  * localMusic — Renderer 层
  *
  * 职责：
- * - 封装 Preload Bridge，提供类型安全的 API
- * - getAllMusicItems 异步（走 IPC），数据由 Store 层缓存
- * - 扫描操作保持异步 IPC
+ * - 封装桥接 API，提供类型安全的接口
+ * - getAllMusicItems 异步（走 Tauri bridge），数据由 Store 层缓存
+ * - 扫描操作保持异步 bridge 调用
  */
 
 import { CONTEXT_BRIDGE_KEY } from './common/constant';
 import type { IScanFolder, IScanProgress, IScanResult } from '@appTypes/infra/localMusic';
 
-// ─── Preload Bridge ───
+// ─── Bridge API ───
 
 interface IMod {
     getAllMusicItems(): Promise<IMusic.IMusicItem[]>;
@@ -32,7 +32,7 @@ class LocalMusicRenderer {
     /** No-op：保持 bootstrap 调用兼容 */
     async setup() {}
 
-    // ─── 全量歌曲（异步 IPC） ───
+    // ─── 全量歌曲（异步 bridge） ───
 
     public getAllMusicItems(): Promise<IMusic.IMusicItem[]> {
         return mod.getAllMusicItems();
@@ -66,7 +66,7 @@ class LocalMusicRenderer {
 
     /**
      * 同步扫描文件夹列表并触发扫描。
-     * 主进程会与 DB 做 diff：新增的插入、移除的删除、保留的 rescan。
+     * Rust 侧会与 DB 做 diff：新增的插入、移除的删除、保留的 rescan。
      */
     public syncScanFolders(folderPaths: string[]): Promise<IScanResult> {
         return mod.syncScanFolders(folderPaths);

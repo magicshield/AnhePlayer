@@ -302,7 +302,6 @@
             "download": "Download",
             "lyric": "Lyric",
             "plugin": "Plugin",
-            "network": "Network",
             "backup": "Backup & Restore",
             "general": "General",
             "playback": "Playback",
@@ -321,19 +320,13 @@
             "max_history_label": "Search history limit",
             "max_history_desc": "For search history display and recall",
             "history_count": "{{count}} entries",
-            "taskbar_thumb_label": "Taskbar thumbnail",
-            "taskbar_thumb_desc": "Windows taskbar thumbnail display content (takes effect after restart)",
-            "taskbar_window": "Window screenshot",
-            "taskbar_artwork": "Album artwork",
             "hide_columns_label": "Hide song list columns",
             "hide_columns_desc": "Columns to hide in the song list",
             "col_duration": "Duration",
             "col_platform": "Source",
             "cache_label": "Cache",
             "cache_desc": "Temporary data for faster loading",
-            "clear_cache": "Clear cache",
-            "custom_tray_menu_label": "Use custom tray menu",
-            "custom_tray_menu_desc": "Use Windows-style tray context menu (takes effect after restart)"
+            "clear_cache": "Clear cache"
         },
         "language_name": {
             "zh-CN": "Simplified Chinese",
@@ -415,13 +408,10 @@
             "skip_version_check_desc": "Allow installing incompatible plugin versions"
         },
         "shortcut": {
-            "subtitle": "In-app & Global Shortcuts",
+            "subtitle": "In-app Shortcuts",
             "enable_local_label": "Enable in-app shortcuts",
             "enable_local_desc": "Active when window is focused",
-            "enable_global_label": "Enable global shortcuts",
-            "enable_global_desc": "System-level shortcut bindings",
             "scope_local": "In-app",
-            "scope_global": "Global",
             "recording_hint": "Press shortcut key…",
             "not_set": "Not set",
             "record_hint": "Click to record shortcut",
@@ -434,21 +424,6 @@
             "action_like_dislike": "Like / Unlike",
             "action_toggle_minimode": "Toggle Mini Mode",
             "clear_binding": "Clear"
-        },
-        "network": {
-            "subtitle": "Proxy & Network Configuration",
-            "enable_proxy_label": "Enable proxy",
-            "enable_proxy_desc": "Use proxy server to access music sources",
-            "host_label": "Host",
-            "host_desc": "Proxy server address",
-            "port_label": "Port",
-            "port_desc": "Proxy port number",
-            "username_label": "Username",
-            "username_desc": "Optional authentication username",
-            "username_placeholder": "Username",
-            "password_label": "Password",
-            "password_desc": "Optional authentication password",
-            "password_placeholder": "Password"
         },
         "backup": {
             "resume_mode_label": "Restore Mode",

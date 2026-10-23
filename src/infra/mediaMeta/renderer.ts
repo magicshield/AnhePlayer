@@ -13,7 +13,7 @@ import { compositeKey } from '@common/mediaKey';
 import { CONTEXT_BRIDGE_KEY } from './common/constant';
 import type { IMediaMeta, MediaMetaPatch, IMediaMetaChangeEvent } from '@appTypes/infra/mediaMeta';
 
-// ─── Preload Bridge ───
+// ─── Tauri Bridge ───
 
 interface IMod {
     getMeta(platform: string, musicId: string): Promise<IMediaMeta | null>;
@@ -43,7 +43,7 @@ class MediaMetaRenderer {
     /** meta 变更监听器 */
     private changeListeners = new Set<MetaChangeListener>();
 
-    /** 注销 preload 事件监听的清理函数 */
+    /** 注销 bridge 事件监听的清理函数 */
     private disposeListener: (() => void) | null = null;
 
     async setup() {

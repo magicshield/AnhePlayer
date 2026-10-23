@@ -138,7 +138,11 @@ export default memo(function LyricText() {
     const needsScroll = textWidth > containerWidth;
 
     return (
-        <div ref={containerRef} className={cn('lyric-text', needsScroll && 'is-scrollable')}>
+        <div
+            ref={containerRef}
+            className={cn('lyric-text', needsScroll && 'is-scrollable')}
+            data-tauri-drag-region
+        >
             <div ref={contentRef} className="lyric-text__content" style={contentStyle}>
                 {displayText}
             </div>

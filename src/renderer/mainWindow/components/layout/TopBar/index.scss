@@ -16,7 +16,6 @@
     &__drag-region {
         position: absolute;
         inset: 0;
-        -webkit-app-region: drag;
         z-index: -1;
     }
 
@@ -24,7 +23,6 @@
 
     &__nav {
         display: flex;
-        -webkit-app-region: no-drag;
     }
 
     &__nav-btn {
@@ -81,7 +79,6 @@
             width var(--duration-normal) var(--ease-standard),
             background-color var(--duration-fast) var(--ease-standard),
             border-color var(--duration-fast) var(--ease-standard);
-        -webkit-app-region: no-drag;
         position: relative; // 搜索面板定位锚点
 
         &.is-focused {
@@ -103,7 +100,6 @@
         color: var(--color-text-primary);
         font-size: var(--text-label-size);
         font-family: inherit;
-        -webkit-app-region: no-drag;
 
         &::placeholder {
             color: var(--color-text-placeholder);
@@ -121,7 +117,6 @@
         top: 0;
         right: 0;
         display: flex;
-        -webkit-app-region: no-drag;
         z-index: 1;
     }
 

@@ -72,7 +72,9 @@ export default function Sidebar() {
         <aside className="l-sidebar">
             {/* ── Logo ── */}
             <div className="l-sidebar__logo" aria-label={BRAND_NAME} title={BRAND_NAME}>
-                <span className="l-sidebar__logo-text">{BRAND_NAME}</span>
+                <span className="l-sidebar__logo-text" data-tauri-drag-region>
+                    {BRAND_NAME}
+                </span>
                 {pendingUpdate && (
                     <button
                         className="l-sidebar__update-trigger"

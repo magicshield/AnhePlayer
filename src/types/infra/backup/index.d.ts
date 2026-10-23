@@ -35,7 +35,7 @@ export interface IBackupResult {
 
 /**
  * musicSheet 模块向 backup 模块提供的 DI 适配器。
- * 封装了歌单导出和导入操作，主进程内直接调用，不经 IPC。
+ * 封装了歌单导出和导入操作，bridge 服务内部直接调用。
  */
 export interface IBackupProvider {
     /** 获取所有可导出歌单的元数据（排除 system 类型） */

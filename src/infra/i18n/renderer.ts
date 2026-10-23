@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 初始化渲染进程侧 i18next 实例（react-i18next 集成）
- * - 通过 IPC 获取语言数据并切换语言
+ * - 通过 Tauri bridge 获取语言数据并切换语言
  * - 提供 React Hook（useLangNames）
  */
 import { createInstance } from 'i18next';

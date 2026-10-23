@@ -13,7 +13,6 @@ const defaultAppConfig: IAppConfig = {
     'playMusic.caseSensitiveInSearch': false,
     'playMusic.playError': 'retry_with_source',
     'playMusic.whenDeviceRemoved': 'play',
-    'normal.taskbarThumb': 'window',
     'normal.closeBehavior': 'minimize',
     'normal.checkUpdate': true,
     'normal.maxHistoryLength': 30,
@@ -29,12 +28,10 @@ const defaultAppConfig: IAppConfig = {
     'lyric.fontSize': 48,
     'lyric.autoMatch': true,
     'shortCut.enableLocal': true,
-    'shortCut.enableGlobal': false,
     'download.concurrency': 5,
     'normal.musicListHideColumns': ['duration'],
     'backup.resumeBehavior': 'append',
     'normal.language': 'zh-CN',
-    'normal.useCustomTrayMenu': false,
 };
 
 export default defaultAppConfig;

@@ -8,7 +8,7 @@ import type {
     INeteaseRadarResult,
 } from '@appTypes/infra/neteaseAccount';
 
-// Electron 由 preload 注入，Tauri 由 tauriBridge/autoInject 同步注入
+// Tauri bridge 在入口模块加载时同步注入
 const mod = (typeof window !== 'undefined'
     ? (window as any)[CONTEXT_BRIDGE_KEY]
     : undefined) as unknown as INeteaseAccountBridge | undefined;

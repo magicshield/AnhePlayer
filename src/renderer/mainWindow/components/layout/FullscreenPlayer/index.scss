@@ -67,14 +67,19 @@
         display: flex;
         align-items: center;
         padding: var(--space-6) var(--space-10);
-        -webkit-app-region: drag;
+    }
+
+    &__drag-region {
+        position: absolute;
+        inset: 0;
     }
 
     &__close-btn {
+        position: relative;
+        z-index: 1;
         border: none;
         background: none;
         padding: 0;
-        -webkit-app-region: no-drag;
         display: flex;
         align-items: center;
         justify-content: center;

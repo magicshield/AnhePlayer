@@ -122,7 +122,7 @@ export default function App() {
             </button>
 
             {/* ── 歌曲信息 + 进度条 ── */}
-            <div className="l-minimode__info">
+            <div className="l-minimode__info" data-tauri-drag-region>
                 <div className="l-minimode__title">
                     {musicItem?.title || (!musicItem ? t('playback.not_playing') : '')}
                 </div>

@@ -1,7 +1,7 @@
 // 本地音乐：目录递归扫描 + 音频标签解析（lofty）。
 //
 // - local_scan_dir：递归发现音频文件（不跟随符号链接，天然防循环），返回 path/size/mtime(ms)
-// - local_parse_meta：解析标题/歌手/专辑/时长（不做 CJK 编码修正与封面读取，对齐 Electron 版 skipCovers/skipLyrics）
+// - local_parse_meta：解析标题/歌手/专辑/时长（不做 CJK 编码修正与封面读取）
 
 use std::fs;
 use std::path::Path;

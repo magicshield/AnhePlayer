@@ -302,7 +302,6 @@
             "download": "下載",
             "lyric": "歌詞",
             "plugin": "插件",
-            "network": "網絡",
             "backup": "備份與恢復",
             "general": "一般",
             "playback": "播放",
@@ -321,19 +320,13 @@
             "max_history_label": "搜尋記錄保留條數",
             "max_history_desc": "用於搜尋歷史展示與回溯",
             "history_count": "{{count}} 條",
-            "taskbar_thumb_label": "任務欄縮略圖",
-            "taskbar_thumb_desc": "Windows 任務欄縮略圖顯示內容（重新啟動後生效）",
-            "taskbar_window": "視窗截圖",
-            "taskbar_artwork": "專輯封面",
             "hide_columns_label": "歌曲列表隱藏欄",
             "hide_columns_desc": "歌曲列表中需要隱藏的欄",
             "col_duration": "時長",
             "col_platform": "來源",
             "cache_label": "快取",
             "cache_desc": "用於加速載入的暫存數據",
-            "clear_cache": "清空快取",
-            "custom_tray_menu_label": "使用自訂系統列選單",
-            "custom_tray_menu_desc": "使用 Windows 風格的系統列右鍵選單（重新啟動後生效）"
+            "clear_cache": "清空快取"
         },
         "language_name": {
             "zh-CN": "簡體中文",
@@ -415,13 +408,10 @@
             "skip_version_check_desc": "允許安裝不相容版本的插件"
         },
         "shortcut": {
-            "subtitle": "軟體內與全局快捷鍵",
+            "subtitle": "軟體內快捷鍵",
             "enable_local_label": "啟用軟體內快捷鍵",
             "enable_local_desc": "視窗聚焦時有效",
-            "enable_global_label": "啟用全局快捷鍵",
-            "enable_global_desc": "系統級別的快捷鍵綁定",
             "scope_local": "軟體內",
-            "scope_global": "全局",
             "recording_hint": "按下快捷鍵…",
             "not_set": "未設定",
             "record_hint": "點擊錄製設定快捷鍵",
@@ -434,21 +424,6 @@
             "action_like_dislike": "喜歡 / 取消喜歡",
             "action_toggle_minimode": "切換迷你模式",
             "clear_binding": "清除"
-        },
-        "network": {
-            "subtitle": "代理與網絡配置",
-            "enable_proxy_label": "啟用代理",
-            "enable_proxy_desc": "使用代理伺服器存取音樂源",
-            "host_label": "主機",
-            "host_desc": "代理伺服器地址",
-            "port_label": "端口",
-            "port_desc": "代理端口號",
-            "username_label": "帳號",
-            "username_desc": "可選認證帳號",
-            "username_placeholder": "使用者名稱",
-            "password_label": "密碼",
-            "password_desc": "可選認證密碼",
-            "password_placeholder": "密碼"
         },
         "backup": {
             "resume_mode_label": "數據恢復方式",

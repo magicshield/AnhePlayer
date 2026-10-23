@@ -6,7 +6,6 @@ import { RouterProvider } from 'react-router';
 
 import bootstrapMainWindow from '../bootstrap/mainWindow';
 import router from './router';
-import { initTauriBridges } from '@infra/tauriBridge';
 
 document.body.dataset.window = 'main';
 
@@ -18,29 +17,34 @@ if (!container) {
 const root = createRoot(container);
 
 function renderErrorFallback(error: any) {
-    const errorMsg = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack}` : String(error);
+    const errorMsg =
+        error instanceof Error ? `${error.name}: ${error.message}\n${error.stack}` : String(error);
     root.render(
-        <div style={{
-            padding: 32,
-            fontFamily: 'Segoe UI, sans-serif',
-            background: '#18181b',
-            color: '#f4f4f5',
-            height: '100vh',
-            boxSizing: 'border-box',
-            overflow: 'auto',
-        }}>
+        <div
+            style={{
+                padding: 32,
+                fontFamily: 'Segoe UI, sans-serif',
+                background: '#18181b',
+                color: '#f4f4f5',
+                height: '100vh',
+                boxSizing: 'border-box',
+                overflow: 'auto',
+            }}
+        >
             <h2 style={{ color: '#ef4444', marginTop: 0 }}>⚠️ 播放器初始化异常 (Renderer Error)</h2>
             <p style={{ color: '#a1a1aa' }}>如果在启动过程中发生错误，请将以下堆栈信息反馈：</p>
-            <pre style={{
-                background: '#09090b',
-                padding: 16,
-                borderRadius: 8,
-                border: '1px solid #27272a',
-                color: '#f87171',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-all',
-                fontSize: 13,
-            }}>
+            <pre
+                style={{
+                    background: '#09090b',
+                    padding: 16,
+                    borderRadius: 8,
+                    border: '1px solid #27272a',
+                    color: '#f87171',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-all',
+                    fontSize: 13,
+                }}
+            >
                 {errorMsg}
             </pre>
             <button
@@ -57,7 +61,7 @@ function renderErrorFallback(error: any) {
             >
                 重新加载应用
             </button>
-        </div>
+        </div>,
     );
 }
 
@@ -75,8 +79,7 @@ window.addEventListener('unhandledrejection', (event) => {
     }
 });
 
-initTauriBridges()
-    .then(() => bootstrapMainWindow())
+bootstrapMainWindow()
     .then(() => {
         root.render(
             <React.StrictMode>

@@ -20,8 +20,6 @@ export interface IFsUtilMod {
 
     fileUrlToPath(fileUrl: string): string;
 
-    getPathForFile(file: File): string;
-
     normalizePath(filePath: string): string;
 
     pathSep: string;

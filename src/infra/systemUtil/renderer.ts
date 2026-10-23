@@ -10,7 +10,37 @@
 import type { IUpdateInfo } from '@appTypes/infra/systemUtil';
 import { CONTEXT_BRIDGE_KEY } from './common/constant';
 
-// ─── Preload Bridge ───
+interface IDialogFilter {
+    name: string;
+    extensions: string[];
+}
+
+interface IOpenDialogOptions {
+    title?: string;
+    buttonLabel?: string;
+    defaultPath?: string;
+    filters?: IDialogFilter[];
+    properties?: Array<'openFile' | 'openDirectory' | 'multiSelections'>;
+}
+
+interface ISaveDialogOptions {
+    title?: string;
+    buttonLabel?: string;
+    defaultPath?: string;
+    filters?: IDialogFilter[];
+}
+
+interface IOpenDialogResult {
+    canceled: boolean;
+    filePaths: string[];
+}
+
+interface ISaveDialogResult {
+    canceled: boolean;
+    filePath?: string;
+}
+
+// ─── Tauri Bridge ───
 
 interface IMod {
     app: {
@@ -35,12 +65,8 @@ interface IMod {
         showItemInFolder(path: string): Promise<boolean>;
     };
     dialog: {
-        showOpenDialog(
-            options: Electron.OpenDialogOptions,
-        ): Promise<Electron.OpenDialogReturnValue>;
-        showSaveDialog(
-            options: Electron.SaveDialogOptions,
-        ): Promise<Electron.SaveDialogReturnValue>;
+        showOpenDialog(options: IOpenDialogOptions): Promise<IOpenDialogResult>;
+        showSaveDialog(options: ISaveDialogOptions): Promise<ISaveDialogResult>;
     };
 }
 
@@ -133,16 +159,12 @@ class SystemUtilRenderer {
     // ─── Dialog ───
 
     /** 显示文件打开对话框 */
-    public showOpenDialog(
-        options: Electron.OpenDialogOptions,
-    ): Promise<Electron.OpenDialogReturnValue> {
+    public showOpenDialog(options: IOpenDialogOptions): Promise<IOpenDialogResult> {
         return mod.dialog.showOpenDialog(options);
     }
 
     /** 显示文件保存对话框 */
-    public showSaveDialog(
-        options: Electron.SaveDialogOptions,
-    ): Promise<Electron.SaveDialogReturnValue> {
+    public showSaveDialog(options: ISaveDialogOptions): Promise<ISaveDialogResult> {
         return mod.dialog.showSaveDialog(options);
     }
 }

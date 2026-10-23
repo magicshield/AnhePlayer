@@ -1,5 +1,5 @@
 /**
- * data 层：mediaMeta 的 Tauri/JS 实现（对齐 Electron 主进程语义）
+ * data 层：mediaMeta 的 Tauri/JS 实现
  *
  * 存储：<userData>/anhe-player-data/media-meta.json
  * - RFC 7396 JSON Merge Patch：patch 值为 null 时删除该字段
@@ -7,11 +7,7 @@
  * - downloadData.path 反查大小写不敏感（对齐 SQLite COLLATE NOCASE）
  */
 import { compositeKey } from '@common/mediaKey';
-import type {
-    IMediaMeta,
-    IMediaMetaChangeEvent,
-    MediaMetaPatch,
-} from '@appTypes/infra/mediaMeta';
+import type { IMediaMeta, IMediaMetaChangeEvent, MediaMetaPatch } from '@appTypes/infra/mediaMeta';
 import { JsonFileStore } from './jsonFile';
 import { joinPath } from './pathUtils';
 import { getUserDataDir } from './tauriFs';
@@ -90,11 +86,7 @@ class MediaMetaStore {
         return result;
     }
 
-    public async setMeta(
-        platform: string,
-        musicId: string,
-        patch: MediaMetaPatch,
-    ): Promise<void> {
+    public async setMeta(platform: string, musicId: string, patch: MediaMetaPatch): Promise<void> {
         const data = await this.init();
         const key = compositeKey(platform, String(musicId));
         const existing = data.entries[key]?.data ?? ({} as IMediaMeta);

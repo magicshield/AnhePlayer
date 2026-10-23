@@ -1,7 +1,7 @@
 /**
  * pluginManager — 洛雪插件沙箱核心（Web Worker 移植版）
  *
- * 由 src/infra/pluginManager/main/pluginSandbox.ts 移植：
+ * 由旧版插件沙箱移植：
  * - Node VM 沙箱执行 → new Function 执行（Worker 环境）
  * - axios / lx.request → host_request 消息桥（宿主经 Tauri http_request 转发，穿透 CORS）
  * - 移除 crypto / https / Buffer 等 Node 依赖
@@ -51,7 +51,11 @@ export function handleHostResponse(
 }
 
 /** 向宿主发起 HTTP 请求（宿主走 Tauri http_request） */
-function hostHttp(method: string, url: string, options: IHostHttpOptions = {}): Promise<IHostHttpResult> {
+function hostHttp(
+    method: string,
+    url: string,
+    options: IHostHttpOptions = {},
+): Promise<IHostHttpResult> {
     const reqId = `req_${++hostRequestSeq}_${Math.random().toString(36).slice(2)}`;
     return new Promise((resolve, reject) => {
         pendingHostRequests.set(reqId, { resolve, reject });
@@ -135,7 +139,8 @@ function toLxBytes(data: any, encoding?: string): Uint8Array {
         }
         if (enc === 'hex') {
             const bytes: number[] = [];
-            for (let i = 0; i + 1 < data.length; i += 2) bytes.push(parseInt(data.slice(i, i + 2), 16));
+            for (let i = 0; i + 1 < data.length; i += 2)
+                bytes.push(parseInt(data.slice(i, i + 2), 16));
             return Uint8Array.from(bytes);
         }
         return new TextEncoder().encode(data);
@@ -144,7 +149,11 @@ function toLxBytes(data: any, encoding?: string): Uint8Array {
     if (data instanceof ArrayBuffer) return new Uint8Array(data);
     if (Array.isArray(data)) return Uint8Array.from(data);
     if (data && typeof data === 'object' && data.buffer instanceof ArrayBuffer) {
-        return new Uint8Array(data.buffer, data.byteOffset || 0, data.byteLength ?? data.length ?? 0);
+        return new Uint8Array(
+            data.buffer,
+            data.byteOffset || 0,
+            data.byteLength ?? data.length ?? 0,
+        );
     }
     return new TextEncoder().encode(String(data));
 }
@@ -185,7 +194,8 @@ const lxUtils = {
         bufToString: (buffer: any, format?: string) => lxBytesToString(toLxBytes(buffer), format),
     },
     crypto: {
-        md5: (value: any) => CryptoJS.MD5(bytesToWordArray(toLxBytes(value))).toString(CryptoJS.enc.Hex),
+        md5: (value: any) =>
+            CryptoJS.MD5(bytesToWordArray(toLxBytes(value))).toString(CryptoJS.enc.Hex),
         randomBytes: (size: number) => {
             const bytes = new Uint8Array(size);
             globalThis.crypto.getRandomValues(bytes);

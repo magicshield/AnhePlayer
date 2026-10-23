@@ -1,7 +1,7 @@
 /**
  * backup — 渲染进程层
  *
- * 无状态，仅封装 preload 暴露的 API 为类型安全的函数。
+ * 无状态，仅封装桥接 API 为类型安全的函数。
  */
 import type { RestoreMode, IBackupResult, IBackupProgress } from '@appTypes/infra/backup';
 import { CONTEXT_BRIDGE_KEY } from './common/constant';

@@ -1,10 +1,10 @@
 /**
  * Tauri 桥接：themepack 主题包
  *
- * 在 Tauri 环境下完整替代 Electron preload 的主题包能力：
+ * 提供主题包能力：
  * - 内置主题（res/builtin-themes）与策展主题（res/theme-store/curated）通过 Vite 打包内联，
  *   因为 Tauri 包未携带 res 资源目录；合成 path 使用 `builtin-theme://` / `curated-theme://` 前缀
- * - 用户主题安装在 userData/anhe-player-themepacks 下（与 Electron 保持一致）
+ * - 用户主题安装在 userData/anhe-player-themepacks 下
  * - .mftheme（zip）解压、远程下载安装、CSS/iframe/blurHash 注入、localStorage 缓存
  * - 主题切换通过 Tauri 事件广播给歌词/迷你窗口
  *
@@ -184,7 +184,12 @@ function bundledFileToDataUrl(files: Record<string, string>, relPath: string): s
  */
 function resolveAliasRelPath(rawPath: string): string | null {
     const relative = normalizePath(rawPath.replace(/^@\//, ''));
-    if (!relative || relative.startsWith('../') || relative.includes('/../') || relative.includes(':')) {
+    if (
+        !relative ||
+        relative.startsWith('../') ||
+        relative.includes('/../') ||
+        relative.includes(':')
+    ) {
         return null;
     }
     return relative;
@@ -222,7 +227,7 @@ async function replaceAlias(
     return result;
 }
 
-// ─── DOM 操作（与 Electron preload 行为保持一致） ───
+// ─── DOM 操作 ───
 
 function whenParentReady(
     getParent: () => HTMLElement | null,
@@ -542,7 +547,7 @@ function clearCache(): void {
 }
 
 /**
- * 启动早期同步注入缓存 CSS（与 Electron preload 的同步阶段对齐）。
+ * 启动早期同步注入缓存 CSS。
  * 仅使用 localStorage，不依赖任何异步 IPC，保证首帧即生效。
  */
 function injectCachedCssSync(): void {

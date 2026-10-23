@@ -20,7 +20,7 @@
 
 AnhePlayer 是一款专为 Windows 设计的现代化桌面音乐播放器，基于 **Tauri v2** 轻量级原生引擎打造。它专注于本地数据管理、外部插件音源解析和界面定制，不内置广告，也不会上传你的个人数据。
 
-全新版本引入了基于 **Web Worker 的轻量洛雪音源沙箱** 与 **Tauri IPC 双轨适配层**，大幅降低了内存与 CPU 占用，带来秒级冷启动与极致流畅体验。
+桌面端采用单一 **Tauri v2 + Rust** 运行链路，洛雪音源插件在 Web Worker 沙箱中运行。
 
 <img width="1022" height="692" alt="image" src="https://img.meituan.net/content/1a7c6bc9cfc1c3f7dfa9a95d2a194cf0337799.png" />
 
@@ -128,11 +128,8 @@ git clone https://github.com/raclen/AnhePlayer.git
 cd AnhePlayer
 pnpm install
 
-# 方式 A：以 Tauri v2 极速启动（推荐）
+# 启动 Tauri v2 开发环境
 pnpm tauri:dev
-
-# 方式 B：以经典 Electron 模式启动
-pnpm start
 ```
 
 ### 常用命令
@@ -141,20 +138,14 @@ pnpm start
 | ------------------ | ---------------------------------------- |
 | `pnpm tauri:dev`   | **Tauri v2 开发模式** (Vite + Rust 核心) |
 | `pnpm tauri:build` | **构建 Tauri v2 超轻量安装包** (MSI/EXE) |
-| `pnpm start`       | 启动 Electron 应用                       |
-| `pnpm run dev`     | Electron 开发调试模式                    |
-| `pnpm run package` | 打包当前平台 Electron 应用目录           |
-| `pnpm run make`    | 构建当前平台 Electron 安装包             |
 | `pnpm run lint`    | 代码检查                                 |
 | `pnpm run format`  | 格式化代码                               |
 
 ## 发布
 
-项目使用 GitHub Actions 构建多平台发布包：
+项目通过 GitHub Actions 构建 Windows 桌面安装包：
 
 - [`Tauri Build & Release`](./.github/workflows/tauri-build.yml)：自动构建 Windows (x86_64) 安装包并发布到 Releases
-- [`Build`](./.github/workflows/build.yml)：构建并上传 Electron Actions artifacts
-- [`Release`](./.github/workflows/release.yml)：从指定 Build run 下载 artifacts，并创建 GitHub Release
 
 ## 贡献
 

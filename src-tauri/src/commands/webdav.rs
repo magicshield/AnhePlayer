@@ -1,6 +1,6 @@
 // WebDAV 备份通道：测试连通性 / 上传 / 下载。
 //
-// 与 Electron 版 webdav npm 包行为对齐：
+// 与 WebDAV 前端调用契约保持一致：
 // - test：PROPFIND Depth:0（207/200/204 视为可达）
 // - put：先 MKCOL 确保目录（405 已存在忽略），再 PUT JSON
 // - get：GET 文本；404 返回 Ok(None)（对应"备份文件不存在"）

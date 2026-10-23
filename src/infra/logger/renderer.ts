@@ -3,7 +3,7 @@
  *
  * 职责：
  * - 提供统一的日志 API（debug/info/warn/error）
- * - 控制台输出 + 序列化后通过 IPC 发送到主进程落盘
+ * - 控制台输出 + 序列化后通过 Tauri bridge 发送到 Rust 落盘
  */
 import type { ILogger, ILogEntry } from '@appTypes/infra/logger';
 import { LogLevel } from '@common/constant';
@@ -49,7 +49,7 @@ class Logger implements ILogger {
         // 控制台输出（保持原始对象便于 DevTools 展开查看）
         consoleFnMap[level]('[renderer] [' + level.toUpperCase() + ']', ...messages);
 
-        // 序列化后通过 IPC 发送到 main 进程落盘
+        // 序列化后通过 Tauri bridge 发送到 Rust 落盘
         // 用 for 循环避免 map 产生临时数组
         const serialized: string[] = new Array(messages.length);
         for (let i = 0, len = messages.length; i < len; i++) {
@@ -66,7 +66,7 @@ class Logger implements ILogger {
         try {
             mod.log(entry);
         } catch {
-            // preload 尚未就绪或通信失败，仅保留控制台输出
+            // bridge 尚未就绪或通信失败，仅保留控制台输出
         }
     }
 }

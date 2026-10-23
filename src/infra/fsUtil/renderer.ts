@@ -2,7 +2,7 @@
  * fsUtil — 渲染进程层
  *
  * 提供类型安全的文件系统操作 API。
- * 底层由 preload 直接使用 Node.js fs 实现（不走 IPC）。
+ * 底层由 Tauri Rust commands 提供。
  */
 import type { IFsUtilMod } from '@appTypes/infra/fsUtil';
 import { CONTEXT_BRIDGE_KEY } from './common/constant';
@@ -88,13 +88,6 @@ class FsUtilRenderer {
      */
     public fileUrlToPath(fileUrl: string): string {
         return mod.fileUrlToPath(fileUrl);
-    }
-
-    /**
-     * 获取 DOM File 对象对应的本地文件系统路径。
-     */
-    public getPathForFile(file: File): string {
-        return mod.getPathForFile(file);
     }
 
     /**

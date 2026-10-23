@@ -19,10 +19,5 @@ export const BUILTIN_THEME_DIR_NAME = 'builtin-themes';
 /** 本地策展主题目录（位于 res 下） */
 export const CURATED_THEME_DIR_NAME = 'theme-store/curated';
 
-/** IPC 通道 */
-export const IPC = {
-    THEME_SWITCHED: '@infra/themepack/theme-switched',
-} as const;
-
-/** contextBridge key */
+/** Tauri bridge key */
 export const CONTEXT_BRIDGE_KEY = '@infra/themepack';

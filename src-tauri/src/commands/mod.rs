@@ -8,6 +8,5 @@ pub mod global_context;
 pub mod http_proxy;
 pub mod local_meta;
 pub mod netease;
-pub mod plugin_store;
 pub mod system_util;
 pub mod webdav;

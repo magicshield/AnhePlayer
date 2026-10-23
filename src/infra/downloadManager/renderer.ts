@@ -3,9 +3,9 @@
  *
  * 职责：
  * - 下载任务列表管理（分页加载）
- * - 实时下载进度追踪（IPC 广播）
+ * - 实时下载进度追踪（Tauri event 广播）
  * - 已下载歌曲 O(1) 查询（内存 Map + useSyncExternalStore）
- * - 代理所有下载操作 IPC 调用
+ * - 代理所有下载操作 bridge 调用
  */
 
 import { useSyncExternalStore, useCallback } from 'react';
@@ -22,7 +22,7 @@ import type {
 } from '@appTypes/infra/downloadManager';
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 
-// ─── Preload Bridge ───
+// ─── Bridge API ───
 
 interface IMod {
     addTask(params: IAddDownloadParams): Promise<IDownloadTask>;
@@ -100,11 +100,11 @@ class DownloadManagerRenderer {
 
     private taskListVersion = 0;
 
-    /** IPC 事件取消订阅函数 */
+    /** bridge 事件取消订阅函数 */
     private unsubProgress: (() => void) | null = null;
     private unsubTaskEvent: (() => void) | null = null;
 
-    /** 防抖刷新任务列表（批量下载时避免高频 IPC） */
+    /** 防抖刷新任务列表（批量下载时避免高频 bridge 调用） */
     private debouncedRefresh = debounce(async () => {
         try {
             const tasks = await mod.getAllTasks();

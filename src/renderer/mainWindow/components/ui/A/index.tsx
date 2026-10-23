@@ -16,7 +16,7 @@ export interface AProps extends Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'h
     onNavigate?: (url: string) => void;
 }
 
-/** 默认导航行为：通过 Electron shell 在系统默认浏览器中打开 */
+/** 默认导航行为：通过系统默认浏览器打开 */
 const defaultNavigate = (url: string) => systemUtil.openExternal(url);
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -26,8 +26,7 @@ const defaultNavigate = (url: string) => systemUtil.openExternal(url);
 /**
  * A — 原子组件
  *
- * 外部链接锚点，点击后通过 Electron shell 在系统默认浏览器中打开。
- * 替代原生 `<a>` 标签，避免 Electron 内导航。
+ * 外部链接锚点，点击后通过系统默认浏览器打开，避免在应用内导航。
  *
  * 样式与原生 `<a>` 一致，仅提供下划线 + hover 规则。
  * font-size、color 等由父容器或 className 控制。

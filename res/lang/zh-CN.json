@@ -302,7 +302,6 @@
             "download": "下载",
             "lyric": "歌词",
             "plugin": "插件",
-            "network": "网络",
             "backup": "备份与恢复",
             "general": "常规",
             "playback": "播放",
@@ -321,19 +320,13 @@
             "max_history_label": "搜索记录保留条数",
             "max_history_desc": "用于搜索历史展示与回溯",
             "history_count": "{{count}} 条",
-            "taskbar_thumb_label": "任务栏缩略图",
-            "taskbar_thumb_desc": "Windows 任务栏缩略图显示内容（重启后生效）",
-            "taskbar_window": "窗口截图",
-            "taskbar_artwork": "专辑封面",
             "hide_columns_label": "歌曲列表隐藏列",
             "hide_columns_desc": "歌曲列表中需要隐藏的列",
             "col_duration": "时长",
             "col_platform": "来源",
             "cache_label": "缓存",
             "cache_desc": "用于加速加载的临时数据",
-            "clear_cache": "清空缓存",
-            "custom_tray_menu_label": "使用自定义托盘菜单",
-            "custom_tray_menu_desc": "使用 Windows 风格的托盘右键菜单（重启后生效）"
+            "clear_cache": "清空缓存"
         },
         "language_name": {
             "zh-CN": "简体中文",
@@ -415,13 +408,10 @@
             "skip_version_check_desc": "允许安装不兼容版本的插件"
         },
         "shortcut": {
-            "subtitle": "软件内与全局快捷键",
+            "subtitle": "软件内快捷键",
             "enable_local_label": "启用软件内快捷键",
             "enable_local_desc": "窗口聚焦时有效",
-            "enable_global_label": "启用全局快捷键",
-            "enable_global_desc": "系统级别的快捷键绑定",
             "scope_local": "软件内",
-            "scope_global": "全局",
             "recording_hint": "按下快捷键…",
             "not_set": "未设置",
             "record_hint": "点击录制设置快捷键",
@@ -434,21 +424,6 @@
             "action_like_dislike": "喜欢 / 取消喜欢",
             "action_toggle_minimode": "切换迷你模式",
             "clear_binding": "清除"
-        },
-        "network": {
-            "subtitle": "代理与网络配置",
-            "enable_proxy_label": "启用代理",
-            "enable_proxy_desc": "使用代理服务器访问音乐源",
-            "host_label": "主机",
-            "host_desc": "代理服务器地址",
-            "port_label": "端口",
-            "port_desc": "代理端口号",
-            "username_label": "账号",
-            "username_desc": "可选认证账号",
-            "username_placeholder": "用户名",
-            "password_label": "密码",
-            "password_desc": "可选认证密码",
-            "password_placeholder": "密码"
         },
         "backup": {
             "resume_mode_label": "数据恢复方式",

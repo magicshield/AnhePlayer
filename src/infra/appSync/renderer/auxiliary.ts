@@ -18,22 +18,6 @@ const mod = window[CONTEXT_BRIDGE_KEY_AUXILIARY as any] as unknown as IMod;
 
 // ─── React Hooks ───
 
-/** 订阅全部应用状态 */
-export function useAppState(): Partial<IAppState> {
-    const [state, setState] = useState<Partial<IAppState>>(mod.getAppState);
-
-    useEffect(() => {
-        const handler = (appState: Partial<IAppState>) => {
-            setState(appState);
-        };
-        const dispose = mod.onStateChange(handler);
-        setState(mod.getAppState());
-        return dispose;
-    }, []);
-
-    return state;
-}
-
 /** 订阅单个状态字段 */
 export function useAppStatePartial<K extends keyof IAppState>(key: K): IAppState[K] | undefined {
     const [value, setValue] = useState<IAppState[K] | undefined>(

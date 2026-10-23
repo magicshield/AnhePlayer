@@ -1,5 +1,5 @@
 /**
- * data 层：localMusic 的 Tauri/JS 实现（对齐 Electron 主进程语义）
+ * data 层：localMusic 的 Tauri/JS 实现
  *
  * 存储：<userData>/anhe-player-data/local-music.json
  * - 增量扫描：Rust local_scan_dir 递归发现 → 与曲库 diff（mtime + size）→
@@ -8,15 +8,11 @@
  * - 下载反查：命中 mediaMeta.download_path 时复用原始 platform + id
  * - 启动后 60s 空闲静默 rescan
  *
- * 与 Electron 版差异：deleteItems 仅移除曲库记录，不移动/删除磁盘文件
+ * deleteItems 仅移除曲库记录，不移动或删除磁盘文件
  * （Tauri 无回收站 API）。
  */
 import { nanoid } from 'nanoid';
-import {
-    INTERNAL_SLIM_KEY,
-    LOCAL_PLUGIN_NAME,
-    SUPPORTED_AUDIO_EXTS,
-} from '@common/constant';
+import { INTERNAL_SLIM_KEY, LOCAL_PLUGIN_NAME, SUPPORTED_AUDIO_EXTS } from '@common/constant';
 import { CONTEXT_BRIDGE_KEY as APP_CONFIG_KEY } from '@infra/appConfig/common/constant';
 import type {
     ILocalMusicItem,
@@ -95,7 +91,7 @@ class LocalMusicStore {
         if (!this.initialized) {
             this.initialized = true;
             await this.refreshConfig();
-            // 启动后 60s 空闲静默 rescan（对齐 Electron）
+            // 启动后 60s 空闲静默 rescan
             setTimeout(() => {
                 void this.idleRescan();
             }, 60_000);
@@ -165,7 +161,7 @@ class LocalMusicStore {
         return [...data.folders].sort((a, b) => a.createdAt - b.createdAt);
     }
 
-    /** 同步扫描文件夹列表并触发扫描（对齐 Electron syncScanFolders 语义） */
+    /** 同步扫描文件夹列表并触发扫描 */
     public async syncScanFolders(folderPaths: string[]): Promise<IScanResult> {
         await this.refreshConfig();
         const data = await this.init();
@@ -297,9 +293,7 @@ class LocalMusicStore {
                     unchanged += 1;
                 }
             }
-            const removed = dbRows
-                .filter((r) => !diskSet.has(r.filePath))
-                .map((r) => r.filePath);
+            const removed = dbRows.filter((r) => !diskSet.has(r.filePath)).map((r) => r.filePath);
 
             // Phase 3: 解析新增/变更文件并写库
             const toProcess = [...added, ...changed];
@@ -398,7 +392,7 @@ class LocalMusicStore {
         };
     }
 
-    /** local_music → IMusicItem（对齐 Electron toMusicItem） */
+    /** 将 local_music 记录转换为 IMusicItem */
     private toMusicItem(row: ILocalMusicItem): IMusic.IMusicItem {
         if (row.platform === LOCAL_PLUGIN_NAME) {
             return {

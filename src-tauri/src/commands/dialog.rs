@@ -1,7 +1,7 @@
-// 原生文件对话框（tauri-plugin-dialog 封装），对齐 Electron dialog 的 options 契约。
+// 原生文件对话框（tauri-plugin-dialog 封装），保持前端既有 options 契约。
 //
 // JS 侧传入形态：{ title?, buttonLabel?, defaultPath?, filters?: [{ name, extensions }], properties?: ['openFile'|'openDirectory'|'multiSelections'] }
-// 返回值对齐 Electron：open → string[] | null（canceled 由 JS 包装），save → string | null。
+// 返回值：open → string[] | null（canceled 由 JS 包装），save → string | null。
 
 use serde::Deserialize;
 use tauri::WebviewWindow;

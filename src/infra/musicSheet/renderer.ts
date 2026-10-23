@@ -31,7 +31,7 @@ import {
     type IMusicSheetEvent,
 } from './common/constant';
 
-// ─── Preload Bridge ───
+// ─── Bridge API ───
 
 interface IMod {
     getAllSheets(): Promise<ILocalSheetMeta[]>;
@@ -138,7 +138,7 @@ class MusicSheetRenderer {
                 // sheetsAtom 始终刷新（轻量 getAllSheets 查询，同步 worksNum 等元数据）
                 store.set(sheetsAtom, await mod.getAllSheets());
 
-                // internal 事件：main 侧内部模块主动变更了歌曲列表，renderer 无乐观更新，需拉取
+                // internal 事件：bridge 服务内部模块主动变更了歌曲列表，renderer 无乐观更新，需拉取
                 // user 事件：renderer 自己发起的操作，乐观更新已处理，跳过
                 if (event.origin === 'internal') {
                     await this.syncInternalChange(event.sheetId);
@@ -171,8 +171,8 @@ class MusicSheetRenderer {
         return store.get(sheetsAtom);
     }
 
-    // NOTE: IPC 完成后手动刷新 sheetsAtom，保证调用者 resolve 时数据已是最新。
-    // main 侧广播会再触发一次 getAllSheets（双重拉取），但开销可忽略。
+    // NOTE: bridge 调用完成后手动刷新 sheetsAtom，保证调用者 resolve 时数据已是最新。
+    // bridge 广播会再触发一次 getAllSheets（双重拉取），但开销可忽略。
 
     async addSheet(title: string): Promise<ILocalSheetMeta> {
         const sheet = await mod.createSheet({ title });
@@ -406,7 +406,7 @@ class MusicSheetRenderer {
     // ─── 内部方法 ───
 
     /**
-     * 处理 main 侧内部变更：按需刷新 musicListAtom + favoriteIdSet（在主进程更新了某个歌单的内容）。
+     * 处理 bridge 服务内部变更：按需刷新 musicListAtom + favoriteIdSet。
      * 仅在 sheetId 匹配当前打开歌单时拉取 musicList，避免无关歌单变更触发多余 IPC。
      */
     private async syncInternalChange(sheetId?: string) {

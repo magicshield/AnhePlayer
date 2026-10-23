@@ -130,6 +130,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
 
                     {/* ── Header ── */}
                     <div className="l-fullscreen-player__header">
+                        <div className="l-fullscreen-player__drag-region" data-tauri-drag-region />
                         <button
                             type="button"
                             className="l-fullscreen-player__close-btn"

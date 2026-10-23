@@ -35,7 +35,7 @@ export interface INeteaseRadarResult {
     songs: IMusic.IMusicItem[];
 }
 
-/** Electron preload 与 Tauri 桥接共同实现的渲染层接口 */
+/** 网易云账号渲染层接口 */
 export interface INeteaseAccountBridge {
     getStatus(force?: boolean): Promise<INeteaseAccountStatus>;
     openLogin(): Promise<'connected' | 'cancelled'>;

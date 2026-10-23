@@ -6,21 +6,14 @@ import { SettingRow } from '../components/SettingRow';
 import { Toggle } from '@renderer/mainWindow/components/ui/Toggle';
 import { useConfigValue } from '@renderer/common/hooks/useConfigValue';
 import appConfig from '@infra/appConfig/renderer';
-import shortCutRenderer from '@infra/shortCut/renderer';
-import type {
-    ShortCutAction,
-    IShortCutBinding,
-    IShortCutMap,
-    IGlobalShortCutRegistration,
-} from '@appTypes/infra/shortCut';
+import type { ShortCutAction, IShortCutBinding, IShortCutMap } from '@appTypes/infra/shortCut';
 
-type ShortcutScope = 'local' | 'global';
+type ShortcutScope = 'local';
 
 interface ShortcutDisplayItem {
     action: ShortCutAction;
     label: string;
     local: string;
-    global: string;
 }
 
 const ACTION_LABEL_KEYS: Record<ShortCutAction, string> = {
@@ -72,12 +65,11 @@ function formatKeyDisplay(accelerator: string): string {
 /**
  * 快捷键设置
  *
- * 配置项：shortCut.enableLocal、shortCut.enableGlobal、shortCut.shortcuts
+ * 配置项：shortCut.enableLocal、shortCut.shortcuts
  */
 export function ShortcutSection() {
     const { t } = useTranslation();
     const [enableLocal, setEnableLocal] = useConfigValue('shortCut.enableLocal');
-    const [enableGlobal, setEnableGlobal] = useConfigValue('shortCut.enableGlobal');
     const [shortcutsMap, setShortcutsMap] = useConfigValue('shortCut.shortcuts');
 
     const [capture, setCapture] = useState<{ action: ShortCutAction; scope: ShortcutScope } | null>(
@@ -87,13 +79,10 @@ export function ShortcutSection() {
     // 对应 scope 被禁用时取消正在进行的录制
     useEffect(() => {
         if (!capture) return;
-        if (
-            (capture.scope === 'local' && !enableLocal) ||
-            (capture.scope === 'global' && !enableGlobal)
-        ) {
+        if (capture.scope === 'local' && !enableLocal) {
             setCapture(null);
         }
-    }, [capture, enableLocal, enableGlobal]);
+    }, [capture, enableLocal]);
 
     const shortcuts: ShortcutDisplayItem[] = useMemo(() => {
         const map = shortcutsMap ?? ({} as Partial<IShortCutMap>);
@@ -103,7 +92,6 @@ export function ShortcutSection() {
                 action,
                 label: t(ACTION_LABEL_KEYS[action]),
                 local: formatKeyDisplay(binding?.local?.join('+') ?? ''),
-                global: formatKeyDisplay(binding?.global?.join('+') ?? ''),
             };
         });
     }, [shortcutsMap]);
@@ -164,25 +152,6 @@ export function ShortcutSection() {
         return () => window.removeEventListener('keydown', handler, true);
     }, [capture, setShortcutsMap]);
 
-    // 全局快捷键注册状态
-    const [globalStatus, setGlobalStatus] = useState<IGlobalShortCutRegistration[]>(() =>
-        shortCutRenderer.getCachedGlobalStatus(),
-    );
-
-    useEffect(() => {
-        const handler = (regs: IGlobalShortCutRegistration[]) => setGlobalStatus(regs);
-        shortCutRenderer.onGlobalShortCutStatusChanged(handler);
-        return () => shortCutRenderer.offGlobalShortCutStatusChanged(handler);
-    }, []);
-
-    const failedActions = useMemo(() => {
-        const set = new Set<ShortCutAction>();
-        for (const reg of globalStatus) {
-            if (!reg.registered) set.add(reg.action);
-        }
-        return set;
-    }, [globalStatus]);
-
     const handleClear = useCallback(
         (action: ShortCutAction, scope: ShortcutScope) => {
             const currentMap =
@@ -208,12 +177,6 @@ export function ShortcutSection() {
                 description={t('settings.shortcut.enable_local_desc')}
                 control={<Toggle checked={enableLocal ?? true} onChange={setEnableLocal} />}
             />
-            <SettingRow
-                label={t('settings.shortcut.enable_global_label')}
-                description={t('settings.shortcut.enable_global_desc')}
-                control={<Toggle checked={enableGlobal ?? false} onChange={setEnableGlobal} />}
-            />
-
             <div className="p-setting__shortcut-list">
                 {shortcuts.map((item) => (
                     <div key={item.action} className="p-setting__shortcut-item">
@@ -232,16 +195,6 @@ export function ShortcutSection() {
                             onClear={() => handleClear(item.action, 'local')}
                             active={capture?.action === item.action && capture.scope === 'local'}
                         />
-                        <ShortcutCell
-                            label={t('settings.shortcut.scope_global')}
-                            value={item.global}
-                            disabled={!enableGlobal}
-                            error={enableGlobal && failedActions.has(item.action)}
-                            onRecord={() => setCapture({ action: item.action, scope: 'global' })}
-                            onCancel={() => setCapture(null)}
-                            onClear={() => handleClear(item.action, 'global')}
-                            active={capture?.action === item.action && capture.scope === 'global'}
-                        />
                     </div>
                 ))}
             </div>
@@ -254,7 +207,6 @@ function ShortcutCell({
     label,
     value,
     disabled,
-    error,
     onRecord,
     onCancel,
     onClear,
@@ -263,7 +215,6 @@ function ShortcutCell({
     label: string;
     value: string;
     disabled?: boolean;
-    error?: boolean;
     onRecord: () => void;
     onCancel: () => void;
     onClear: () => void;
@@ -332,7 +283,6 @@ function ShortcutCell({
                 'p-setting__shortcut-cell',
                 active && 'is-active',
                 disabled && 'is-disabled',
-                error && 'is-error',
             )}
             onClick={handleCellClick}
             onKeyDown={handleKeyDown}

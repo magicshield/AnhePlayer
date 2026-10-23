@@ -25,7 +25,6 @@ export default defineConfig([
         },
         rules: {
             ...importPlugin.configs.recommended.rules,
-            ...(importPlugin.configs.electron?.rules ?? {}),
             ...(importPlugin.configs.typescript?.rules ?? {}),
             '@typescript-eslint/member-ordering': [
                 'warn',

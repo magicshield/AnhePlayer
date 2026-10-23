@@ -8,7 +8,7 @@ import { tauriInvoke } from '../ipc';
 
 /**
  * 检查应用更新（JS 实现，逐源尝试）。
- * 对齐 Electron 主进程逻辑：任一源返回更高版本即中止并给出 update 信息。
+ * 任一更新源返回更高版本即中止并给出 update 信息。
  */
 async function checkUpdateImpl(): Promise<IUpdateInfo> {
     const currentVersion = ((globalThis as any).globalContext?.appVersion as string) || '0.0.0';

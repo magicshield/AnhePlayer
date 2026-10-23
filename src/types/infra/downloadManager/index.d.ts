@@ -77,7 +77,7 @@ export interface IDownloadProgress {
 
 /** 添加下载任务参数 */
 export interface IAddDownloadParams {
-    /** 歌曲数据（完整或精简均可，主进程会自动解析 slim → full） */
+    /** 歌曲数据（完整或精简均可，bridge 服务会自动解析 slim → full） */
     musicItem: IMusic.IMusicItem | IMusicItemSlim;
     /** 指定音质，默认取 download.defaultQuality */
     quality?: IMusic.IQualityKey;

@@ -2,7 +2,7 @@
  * requestForwarder — Renderer 层
  *
  * 提供类型安全的代理 URL 构建工具。
- * 初始化时从主进程获取端口并缓存，之后 buildProxyUrl() 为纯同步计算。
+ * 初始化时从 Rust bridge 获取端口并缓存，之后 buildProxyUrl() 为纯同步计算。
  * 监听端口变更事件，worker 重启后自动更新。
  */
 

@@ -1,17 +1,16 @@
 /**
- * shortCut — Electron Accelerator → tinykeys 格式转换工具
+ * 将应用保存的快捷键格式转换为 tinykeys 格式
  *
- * Electron Accelerator 格式: "CmdOrCtrl+Shift+P", "Alt+F4", "MediaPlayPause"
+ * 旧版配置格式: "CmdOrCtrl+Shift+P", "Alt+F4", "MediaPlayPause"
  * tinykeys 格式: "$mod+Shift+p", "Alt+F4", "MediaPlayPause"
  *
- * @see https://www.electronjs.org/docs/latest/api/accelerator
  * @see https://github.com/jamiebuilds/tinykeys
  */
 
 /**
- * 修饰键映射表：Electron Accelerator → tinykeys modifier
+ * 修饰键映射表：配置格式 → tinykeys modifier
  *
- * Electron 格式不区分大小写，这里统一按小写 key 匹配。
+ * 配置格式不区分大小写，这里统一按小写 key 匹配。
  * tinykeys 使用 KeyboardEvent.getModifierState() 的标准名称。
  */
 const MODIFIER_MAP: Record<string, string> = {
@@ -38,9 +37,9 @@ const MODIFIER_MAP: Record<string, string> = {
 };
 
 /**
- * 特殊键名映射表：Electron 键名 → tinykeys 键名
+ * 特殊键名映射表：配置键名 → tinykeys 键名
  *
- * Electron 使用自己的命名（如 "Return"），
+ * 配置使用旧版按键命名（如 "Return"），
  * tinykeys 使用 KeyboardEvent.key 或 KeyboardEvent.code 标准名称。
  */
 const KEY_MAP: Record<string, string> = {
@@ -89,20 +88,20 @@ const KEY_MAP: Record<string, string> = {
 };
 
 /**
- * 将 Electron Accelerator 格式的快捷键字符串转换为 tinykeys 格式。
+ * 将应用配置中的快捷键字符串转换为 tinykeys 格式。
  *
- * @param accelerator Electron Accelerator 格式字符串，如 "CmdOrCtrl+Shift+P"
+ * @param accelerator 快捷键格式字符串，如 "CmdOrCtrl+Shift+P"
  * @returns tinykeys 格式字符串，如 "$mod+Shift+p"
  *
  * @example
  * ```ts
- * electronAcceleratorToTinykeys("CmdOrCtrl+Shift+P")  // → "$mod+Shift+p"
- * electronAcceleratorToTinykeys("Alt+F4")             // → "Alt+F4"
- * electronAcceleratorToTinykeys("Ctrl+A")             // → "Control+a"
- * electronAcceleratorToTinykeys("MediaPlayPause")     // → "MediaPlayPause"
+ * acceleratorToTinykeys("CmdOrCtrl+Shift+P")  // → "$mod+Shift+p"
+ * acceleratorToTinykeys("Alt+F4")             // → "Alt+F4"
+ * acceleratorToTinykeys("Ctrl+A")             // → "Control+a"
+ * acceleratorToTinykeys("MediaPlayPause")     // → "MediaPlayPause"
  * ```
  */
-export function electronAcceleratorToTinykeys(accelerator: string): string {
+export function acceleratorToTinykeys(accelerator: string): string {
     // 兼容旧配置：空格键可能存储为 ' ' 而非 'Space'，
     // split('+') + trim() 会丢失它。先统一替换为 'Space'。
     const sanitized = accelerator.replace(/ /g, 'Space');
@@ -135,29 +134,4 @@ export function electronAcceleratorToTinykeys(accelerator: string): string {
     // 拼接：modifiers + key
     const allParts = [...modifiers, key].filter(Boolean);
     return allParts.join('+');
-}
-
-/**
- * 将 KeyboardEvent 转换为 Electron Accelerator 按键部分数组。
- *
- * @returns 按键部分数组，如 `["CmdOrCtrl", "Shift", "P"]`
- *
- * @example
- * ```ts
- * // 用户按下 Ctrl+Shift+P
- * keyboardEventToElectronAccelerator(event)  // → ["CmdOrCtrl", "Shift", "P"]
- * ```
- */
-export function keyboardEventToElectronAccelerator(e: KeyboardEvent): string[] {
-    const parts: string[] = [];
-    if (e.ctrlKey || e.metaKey) parts.push('CmdOrCtrl');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.altKey) parts.push('Alt');
-
-    // 排除单独的修饰键
-    if (!['Control', 'Meta', 'Shift', 'Alt'].includes(e.key)) {
-        parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
-    }
-
-    return parts;
 }

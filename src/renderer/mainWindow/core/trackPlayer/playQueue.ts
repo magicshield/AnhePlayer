@@ -2,7 +2,7 @@
  * PlayQueue — 播放队列管理
  *
  * 内存中维护 slim 列表供 UI 渲染，
- * 通过 MutationQueue + musicSheet preload IPC 持久化到 SQLite 虚拟歌单。
+ * 通过 MutationQueue + musicSheet bridge 持久化到 SQLite 虚拟歌单。
  * 乐观更新：先改内存 → 再异步落库。
  */
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
@@ -33,7 +33,7 @@ class PlayQueue {
 
     constructor() {
         this.mutationQueue.onError(() => {
-            // 持久化失败时从主进程重新加载
+            // 持久化失败时从 bridge 服务重新加载
             this.reloadFromDB();
         });
     }
@@ -83,7 +83,7 @@ class PlayQueue {
      * 替换整个队列。
      * @param items   歌曲列表（IMusicItem 或 IMusicItemSlim 均可）
      * @param options.playIndex    起始播放位置
-     * @param options.fromSheetId  可选性能优化提示：若来自某本地歌单，主进程用 INSERT...SELECT
+     * @param options.fromSheetId  可选性能优化提示：若来自某本地歌单，Rust 侧用 INSERT...SELECT
      */
     setQueue(
         items: (IMusic.IMusicItem | IMusicItemSlim)[],
@@ -167,7 +167,7 @@ class PlayQueue {
         }
         this.syncAtom();
 
-        // afterIndex 超出范围时主进程自动 append
+        // afterIndex 超出范围时 Rust 侧自动 append
         this.mutationQueue.enqueue(() =>
             playQueueBridge.add(items as IMusic.IMusicItem[], this.slimList.length),
         );

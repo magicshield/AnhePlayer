@@ -7,7 +7,6 @@ import {
     Mic2,
     Blocks,
     Keyboard,
-    Wifi,
     DatabaseBackup,
     Info,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ import { DownloadSection } from './sections/DownloadSection';
 import { LyricSection } from './sections/LyricSection';
 import { PluginSection } from './sections/PluginSection';
 import { ShortcutSection } from './sections/ShortcutSection';
-import { NetworkSection } from './sections/NetworkSection';
 import { BackupSection } from './sections/BackupSection';
 import { AboutSection } from './sections/AboutSection';
 import './index.scss';
@@ -32,7 +30,6 @@ const SECTION_MAP: Record<string, () => ReactNode> = {
     lyrics: () => <LyricSection />,
     plugins: () => <PluginSection />,
     shortcuts: () => <ShortcutSection />,
-    network: () => <NetworkSection />,
     backup: () => <BackupSection />,
     about: () => <AboutSection />,
 };
@@ -78,11 +75,6 @@ export default function SettingPage() {
                 key: 'shortcuts',
                 label: t('settings.section_name.shortcut'),
                 icon: <Keyboard width={16} height={16} />,
-            },
-            {
-                key: 'network',
-                label: t('settings.section_name.network'),
-                icon: <Wifi width={16} height={16} />,
             },
             {
                 key: 'backup',

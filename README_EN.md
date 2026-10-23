@@ -122,33 +122,25 @@ git clone https://github.com/raclen/AnhePlayer.git
 cd AnhePlayer
 pnpm install
 
-# Option A: Start with Tauri v2 (Recommended)
+# Start the Tauri v2 development environment
 pnpm tauri:dev
 
-# Option B: Start with classic Electron
-pnpm start
 ```
 
 ### Commands
 
-| Command            | Description                                        |
-| ------------------ | -------------------------------------------------- |
-| `pnpm tauri:dev`   | **Start Tauri v2 dev mode** (Vite + Rust core)     |
-| `pnpm tauri:build` | **Build Tauri v2 lightweight package** (MSI/EXE)   |
-| `pnpm start`       | Start Electron app                                 |
-| `pnpm run dev`     | Start Electron development mode                    |
-| `pnpm run package` | Package the app directory for the current platform |
-| `pnpm run make`    | Build installers for the current platform          |
-| `pnpm run lint`    | Run lint checks                                    |
-| `pnpm run format`  | Format code                                        |
+| Command            | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `pnpm tauri:dev`   | **Start Tauri v2 dev mode** (Vite + Rust core)   |
+| `pnpm tauri:build` | **Build Tauri v2 lightweight package** (MSI/EXE) |
+| `pnpm run lint`    | Run lint checks                                  |
+| `pnpm run format`  | Format code                                      |
 
 ## Release
 
-This project uses GitHub Actions to build release packages:
+GitHub Actions builds Windows desktop installers:
 
 - [`Tauri Build & Release`](./.github/workflows/tauri-build.yml): builds Windows (x86_64) installers and uploads to Releases
-- [`Build`](./.github/workflows/build.yml): builds Electron packages and uploads Actions artifacts
-- [`Release`](./.github/workflows/release.yml): downloads artifacts from a selected Build run and creates a GitHub Release
 
 ## Contributing
 

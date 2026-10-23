@@ -23,7 +23,6 @@
         gap: var(--space-2);
         padding: 0 var(--space-4) 0 var(--space-3);
         margin-bottom: var(--space-8);
-        -webkit-app-region: drag;
         cursor: pointer;
     }
 
@@ -44,7 +43,6 @@
         border: 0;
         background: transparent;
         cursor: pointer;
-        -webkit-app-region: no-drag;
 
         &:focus-visible {
             outline: 2px solid var(--color-border-brand);

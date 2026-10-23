@@ -2,7 +2,7 @@
  * themepack — 渲染进程层
  *
  * 对外提供极简 API 和 React Hooks。
- * 所有 localStorage 缓存、DOM 操作、文件 I/O 等细节隐藏在 preload 层。
+ * 所有 localStorage 缓存、DOM 操作、文件 I/O 等细节隐藏在 bridge 层。
  *
  * 调用方只需：
  *   - `themePack.setup()` 初始化（一次）
@@ -17,9 +17,9 @@ import { useAtomValue } from 'jotai/react';
 import type { IThemePack } from '@appTypes/infra/themepack';
 import { CONTEXT_BRIDGE_KEY } from './common/constant';
 
-// ─── Preload Bridge ───
+// ─── Tauri Bridge ───
 
-/** preload 暴露的 API 接口契约 */
+/** Tauri bridge API 接口契约 */
 interface IMod {
     initCurrentTheme(): Promise<IThemePack | null>;
     selectTheme(themePack: IThemePack | null): Promise<void>;
@@ -28,8 +28,7 @@ interface IMod {
     installThemePackFromDirectory(themePackDirPath: string): Promise<IThemePack | null>;
     installRemoteThemePack(remoteUrl: string): Promise<IThemePack | null>;
     uninstallThemePack(themePack: IThemePack): Promise<void>;
-    /** Tauri 扩展：解析打包内联资源（非 Tauri 环境不存在） */
-    resolveBundledResUrl?(relativePath: string): string | null;
+    resolveBundledResUrl(relativePath: string): string | null;
 }
 
 const mod = window[CONTEXT_BRIDGE_KEY as any] as unknown as IMod;
@@ -126,13 +125,11 @@ class ThemePackRenderer {
 
     /**
      * 解析打包内联资源路径（Tauri 环境下 res 目录不存在，主题市场预览走此通道）。
-     * 非 Tauri 环境（如 Electron）没有该桥方法，返回 null 由调用方自行回退。
+     * 资源未内联时返回 null。
      */
     public resolveBundledResUrl(relativePath: string): string | null {
-        const fn = (mod as any).resolveBundledResUrl;
-        if (typeof fn !== 'function') return null;
         try {
-            return fn(relativePath) ?? null;
+            return mod.resolveBundledResUrl(relativePath) ?? null;
         } catch {
             return null;
         }
@@ -143,7 +140,7 @@ class ThemePackRenderer {
      */
     public async loadAllThemePacks(): Promise<IThemePack[]> {
         const list = await mod.loadAllThemePacks();
-        // 内置主题已由 preload 排在前面，用户安装的按名称排序
+        // 内置主题已由 bridge 排在前面，用户安装的按名称排序
         list.sort((a, b) => {
             // 内置主题始终排在最前面
             if (a.builtin !== b.builtin) return a.builtin ? -1 : 1;

@@ -1,5 +1,5 @@
 /**
- * data 层：musicSheet 的 Tauri/JS 实现（对齐 Electron 主进程 SQLite 语义）
+ * data 层：musicSheet 的 Tauri/JS 实现
  *
  * 存储：<userData>/anhe-player-data/music-sheet.json
  * 语义对齐 src/infra/musicSheet/main/{index,queries}.ts：
@@ -186,7 +186,7 @@ class MusicSheetStore {
         }
     }
 
-    /** 延迟清理不被任何歌单引用的歌曲（对齐 Electron 5s 防抖） */
+    /** 延迟清理不被任何歌单引用的歌曲（5s 防抖） */
     private scheduleOrphanCleanup(): void {
         if (this.orphanCleanupTimer) return;
         this.orphanCleanupTimer = setTimeout(() => {
@@ -348,7 +348,7 @@ class MusicSheetStore {
         const data = await this.init();
         const sheet = data.sheets.find((s) => s.id === params.id);
         if (!sheet) return;
-        // 对齐 Electron：params.xxx ?? existing.xxx（null/undefined 保留旧值）
+        // 未提供字段或显式传 null 时，保留现有字段值
         sheet.title = params.title ?? sheet.title;
         sheet.artwork = params.artwork ?? sheet.artwork;
         sheet.description = params.description ?? sheet.description;
@@ -435,15 +435,17 @@ class MusicSheetStore {
         const kill = new Set(musicBases.map((b) => relKeyOf('', b.platform, String(b.id))));
         data.relations = data.relations.filter(
             (r) =>
-                r.sheetId === PLAY_QUEUE_SHEET_ID ||
-                !kill.has(relKeyOf('', r.platform, r.musicId)),
+                r.sheetId === PLAY_QUEUE_SHEET_ID || !kill.has(relKeyOf('', r.platform, r.musicId)),
         );
         this.scheduleOrphanCleanup();
         this.save();
         this.broadcast({ origin: 'user' });
     }
 
-    public async updateMusicOrder(sheetId: string, orderedKeys: IMedia.IMediaBase[]): Promise<void> {
+    public async updateMusicOrder(
+        sheetId: string,
+        orderedKeys: IMedia.IMediaBase[],
+    ): Promise<void> {
         const data = await this.init();
         const orderIndex = new Map<string, number>();
         for (let i = 0; i < orderedKeys.length; i++) {
@@ -457,10 +459,7 @@ class MusicSheetStore {
         this.save();
     }
 
-    public async getRawMusicItem(
-        platform: string,
-        id: string,
-    ): Promise<IMusic.IMusicItem | null> {
+    public async getRawMusicItem(platform: string, id: string): Promise<IMusic.IMusicItem | null> {
         const data = await this.init();
         const item = data.items[compositeKey(platform, String(id))];
         if (!item?.raw) return null;
@@ -592,7 +591,10 @@ class MusicSheetStore {
         // 1. 去重：移除队列中已存在的同名歌曲
         data.relations = data.relations.filter(
             (r) =>
-                !(r.sheetId === PLAY_QUEUE_SHEET_ID && kill.has(relKeyOf('', r.platform, r.musicId))),
+                !(
+                    r.sheetId === PLAY_QUEUE_SHEET_ID &&
+                    kill.has(relKeyOf('', r.platform, r.musicId))
+                ),
         );
 
         // 2. 在去重后的有序队列中定位插入点（对齐 SQL：pivot 及之后后移）
@@ -631,7 +633,10 @@ class MusicSheetStore {
         const kill = new Set(musicBases.map((b) => relKeyOf('', b.platform, String(b.id))));
         data.relations = data.relations.filter(
             (r) =>
-                !(r.sheetId === PLAY_QUEUE_SHEET_ID && kill.has(relKeyOf('', r.platform, r.musicId))),
+                !(
+                    r.sheetId === PLAY_QUEUE_SHEET_ID &&
+                    kill.has(relKeyOf('', r.platform, r.musicId))
+                ),
         );
         this.scheduleOrphanCleanup();
         this.save();
@@ -715,7 +720,7 @@ class MusicSheetStore {
         return results;
     }
 
-    /** 导入歌单（对齐 Electron importSheets 的 overwrite/append 语义） */
+    /** 导入歌单，支持覆盖或追加 */
     public async importSheets(
         sheets: IBackupSheet[],
         mode: RestoreMode,

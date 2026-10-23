@@ -4,8 +4,7 @@
  * 职责:
  *  1. 管理应用内（local）快捷键 — 基于 tinykeys 监听 DOM keydown
  *  2. 热更新：监听 appConfig 变更，自动重新绑定
- *  3. 暴露全局快捷键注册状态查询
- *  4. 快捷键触发时通过 appSync.sendCommand 派发指令
+ *  3. 快捷键触发时通过 appSync.sendCommand 派发指令
  *
  * NOTE:
  *  - 本模块仅处理配置化的 8 个 ShortCutAction
@@ -15,24 +14,8 @@
 import { tinykeys } from 'tinykeys';
 import type { IAppConfig, IAppConfigReader } from '@appTypes/infra/appConfig';
 import type { ICommandSender } from '@appTypes/infra/appSync';
-import type {
-    IGlobalShortCutRegistration,
-    IShortCutBinding,
-    ShortCutAction,
-} from '@appTypes/infra/shortCut';
-import { electronAcceleratorToTinykeys } from './common/accelerator';
-import { CONTEXT_BRIDGE_KEY } from './common/constant';
-
-// ─── Preload Bridge ───
-
-interface IMod {
-    getGlobalShortCutStatus(): Promise<IGlobalShortCutRegistration[]>;
-    onGlobalShortCutStatusChanged(
-        callback: (registrations: IGlobalShortCutRegistration[]) => void,
-    ): () => void;
-}
-
-const mod = window[CONTEXT_BRIDGE_KEY as any] as unknown as IMod;
+import type { IShortCutBinding, ShortCutAction } from '@appTypes/infra/shortCut';
+import { acceleratorToTinykeys } from './common/accelerator';
 
 // ─── 模块实现 ───
 
@@ -42,14 +25,6 @@ class ShortCutRenderer {
 
     /** tinykeys 返回的取消绑定函数 */
     private unsubscribeLocal: (() => void) | null = null;
-
-    /** 全局快捷键注册状态缓存 */
-    private globalStatus: IGlobalShortCutRegistration[] = [];
-
-    /** 状态变更监听回调 */
-    private globalStatusCallbacks = new Set<
-        (registrations: IGlobalShortCutRegistration[]) => void
-    >();
 
     private isSetup = false;
 
@@ -70,37 +45,7 @@ class ShortCutRenderer {
         // 监听配置变更，热更新
         this.appConfig.onConfigUpdated(this.handleConfigUpdated);
 
-        // 订阅全局快捷键状态推送
-        this.initGlobalStatusSync();
-
         this.isSetup = true;
-    }
-
-    // ─── 全局快捷键状态查询 ───
-
-    /** 获取当前全局快捷键注册状态 */
-    public async getGlobalShortCutStatus(): Promise<IGlobalShortCutRegistration[]> {
-        this.globalStatus = await mod.getGlobalShortCutStatus();
-        return this.globalStatus;
-    }
-
-    /** 监听全局快捷键状态变更 */
-    public onGlobalShortCutStatusChanged(
-        callback: (registrations: IGlobalShortCutRegistration[]) => void,
-    ) {
-        this.globalStatusCallbacks.add(callback);
-    }
-
-    /** 取消监听 */
-    public offGlobalShortCutStatusChanged(
-        callback: (registrations: IGlobalShortCutRegistration[]) => void,
-    ) {
-        this.globalStatusCallbacks.delete(callback);
-    }
-
-    /** 获取缓存的全局快捷键状态（同步） */
-    public getCachedGlobalStatus(): IGlobalShortCutRegistration[] {
-        return this.globalStatus;
     }
 
     // ─── 内部逻辑 ───
@@ -149,7 +94,7 @@ class ShortCutRenderer {
                 continue;
             }
 
-            const tinykeysCombination = electronAcceleratorToTinykeys(accelerator);
+            const tinykeysCombination = acceleratorToTinykeys(accelerator);
             keyBindings[tinykeysCombination] = (event) => {
                 // 当焦点在输入型元素时，不拦截快捷键，避免阻止正常输入（如空格）
                 const target = event.target as HTMLElement | null;
@@ -172,19 +117,6 @@ class ShortCutRenderer {
         if (Object.keys(keyBindings).length > 0) {
             this.unsubscribeLocal = tinykeys(window, keyBindings);
         }
-    }
-
-    private initGlobalStatusSync() {
-        // 从主进程获取初始状态
-        void this.getGlobalShortCutStatus();
-
-        // 监听后续推送
-        mod.onGlobalShortCutStatusChanged((registrations) => {
-            this.globalStatus = registrations;
-            for (const cb of this.globalStatusCallbacks) {
-                cb(registrations);
-            }
-        });
     }
 }
 

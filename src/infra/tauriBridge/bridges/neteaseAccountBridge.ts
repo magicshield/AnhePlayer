@@ -2,7 +2,7 @@
  * Tauri 桥接：neteaseAccount
  *
  * 登录窗口与带 Cookie 的请求在 Rust 侧完成（commands/netease.rs），MUSIC_U 不会进入 JS；
- * 前端只负责 weapi 加密与业务编排（与 Electron 共用 common/core）。
+ * 前端负责 WeAPI 加密与业务编排。
  */
 import { CONTEXT_BRIDGE_KEY } from '@infra/neteaseAccount/common/constant';
 import {

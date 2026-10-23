@@ -1,5 +1,5 @@
 /**
- * 网易云 WeAPI 请求加密（Electron 主进程与 Tauri 前端共用）
+ * 网易云 WeAPI 请求加密
  *
  * 只依赖 WebCrypto（AES-CBC）与 BigInt，Node 22 与 WebView2 均原生支持。
  * 网易云的 RSA 是无填充的裸模幂运算，WebCrypto 不提供该模式，因此用 BigInt 手工计算。

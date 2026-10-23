@@ -20,11 +20,6 @@ export const fullscreenPlayerOpenAtom = atom(false);
 
 const store = getDefaultStore();
 
-/** 切换全屏播放器的开关状态 */
-export function toggleFullscreenPlayer(): void {
-    store.set(fullscreenPlayerOpenAtom, (prev) => !prev);
-}
-
 /** 关闭全屏播放器 */
 export function closeFullscreenPlayer(): void {
     store.set(fullscreenPlayerOpenAtom, false);

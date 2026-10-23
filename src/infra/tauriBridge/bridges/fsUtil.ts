@@ -9,10 +9,14 @@ export function registerFsUtilBridge(): void {
         writeFile: async (
             path: string,
             data: string | Uint8Array,
-            _options?: { encoding?: string; flag?: string }
+            _options?: { encoding?: string; flag?: string },
         ): Promise<void> => {
             const content = typeof data === 'string' ? data : Array.from(data);
-            await tauriInvoke('fs_write_file', { path, content, isBinary: typeof data !== 'string' });
+            await tauriInvoke('fs_write_file', {
+                path,
+                content,
+                isBinary: typeof data !== 'string',
+            });
         },
 
         readFile: async (path: string, encoding?: string): Promise<string | Uint8Array> => {
@@ -42,23 +46,25 @@ export function registerFsUtilBridge(): void {
         rimraf: async (path: string): Promise<void> => {
             try {
                 await tauriInvoke('fs_remove', { path });
-            } catch {}
+            } catch {
+                return;
+            }
         },
 
         mkdir: async (path: string): Promise<void> => {
             try {
                 await tauriInvoke('fs_mkdir', { path });
-            } catch {}
-        },
-
-        getPathForFile: (file: File): string => {
-            return (file as any).path || '';
+            } catch {
+                return;
+            }
         },
 
         copyFile: async (src: string, dest: string): Promise<void> => {
             try {
                 await tauriInvoke('fs_copy_file', { src, dest });
-            } catch {}
+            } catch {
+                return;
+            }
         },
 
         readDir: async (path: string): Promise<string[]> => {
@@ -82,13 +88,13 @@ export function registerFsUtilBridge(): void {
 
         fileUrlToPath: (fileUrl: string): string => {
             if (!fileUrl.startsWith('file://')) return fileUrl;
-            let p = fileUrl.replace(/^file:\/\/\/?/, '');
+            let p = fileUrl.replace(/^file:(?:[/]){2,3}/, '');
             p = decodeURIComponent(p);
-            return p.replace(/\//g, '\\');
+            return p.split('/').join('\\');
         },
 
         normalizePath: (filePath: string): string => {
-            return filePath.replace(/[\/\\]+/g, '\\');
+            return filePath.replace(/[/\\]+/g, '\\');
         },
 
         pathSep: '\\',

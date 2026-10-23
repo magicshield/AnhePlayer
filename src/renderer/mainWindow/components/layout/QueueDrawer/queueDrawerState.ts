@@ -29,8 +29,3 @@ export function toggleQueueDrawer(): void {
 export function closeQueueDrawer(): void {
     store.set(queueDrawerOpenAtom, false);
 }
-
-/** 打开播放队列抽屉 */
-export function openQueueDrawer(): void {
-    store.set(queueDrawerOpenAtom, true);
-}

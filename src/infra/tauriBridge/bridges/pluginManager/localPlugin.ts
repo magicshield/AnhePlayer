@@ -85,7 +85,7 @@ function resolveLocalPath(musicItem: any): string | null {
 
 /**
  * 稳定的路径哈希（FNV-1a 双通道，16 位十六进制）。
- * 替代 Electron 版的 md5(filePath)，仅需会话间稳定即可。
+ * 使用稳定的双通道路径哈希标识本地曲目。
  */
 function hashPath(p: string): string {
     let h1 = 0x811c9dc5;
@@ -122,7 +122,9 @@ async function parseLocalMusicItemFolder(folderPath: string): Promise<IMusic.IMu
         const names = await tauriInvoke<string[] | null>('fs_read_dir', { path: folderPath });
         if (!Array.isArray(names)) return [];
         const musicFiles = names.filter((name) => SUPPORTED_AUDIO_EXTS.has(extOf(name)));
-        return await Promise.all(musicFiles.map((name) => parseLocalMusicItem(joinPath(folderPath, name))));
+        return await Promise.all(
+            musicFiles.map((name) => parseLocalMusicItem(joinPath(folderPath, name))),
+        );
     } catch {
         return [];
     }

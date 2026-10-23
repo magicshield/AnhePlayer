@@ -1,5 +1,5 @@
 /**
- * data 层：backup 的 Tauri/JS 实现（对齐 Electron 主进程语义）
+ * data 层：backup 的 Tauri/JS 实现
  *
  * - 文件备份/恢复：直接读写 JSON（IBackupData v1，兼容旧版无 version 格式）
  * - WebDAV 备份/恢复/测试：Rust webdav_* 命令（basic auth + MKCOL/PUT/GET/PROPFIND）
@@ -92,10 +92,7 @@ class BackupStore {
         };
     }
 
-    private async importWithProgress(
-        data: IBackupData,
-        mode: RestoreMode,
-    ): Promise<IBackupResult> {
+    private async importWithProgress(data: IBackupData, mode: RestoreMode): Promise<IBackupResult> {
         const importResult = await musicSheetStore.importSheets(
             data.musicSheets,
             mode,

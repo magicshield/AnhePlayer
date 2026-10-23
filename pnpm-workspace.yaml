@@ -1,10 +1,9 @@
 packages:
-  - .
+    - .
 
 allowBuilds:
-  '@parcel/watcher': true
-  better-sqlite3: true
-  electron: true
-  sharp: true
-  unrs-resolver: true
+    '@parcel/watcher': true
+    esbuild: set this to true or false
+    sharp: true
+    unrs-resolver: true
 nodeLinker: hoisted

@@ -2,7 +2,7 @@
  * pluginManager — Renderer 层
  *
  * 提供插件管理的渲染进程 API：
- * - 双阶段初始化：先用 preload 缓存显示首帧，再异步加载最新数据
+ * - 双阶段初始化：先用本地缓存显示首帧，再异步加载最新数据
  * - jotai 状态管理：见 store.ts（pluginsAtom、pluginMetaAtom）
  * - callPluginMethod：统一方法调用
  * - adapters.getMediaSource：带音质回退的获取音源
@@ -22,7 +22,7 @@ import { sortByPluginOrder } from '../common/sortByOrder';
 import { store, pluginsAtom, pluginMetaAtom, pluginAvailabilityAtom } from './store';
 import type { IPluginAvailabilityResult } from './store';
 
-// ─── Preload 接口类型 ───
+// ─── Tauri Bridge 接口类型 ───
 
 interface IMod {
     callPluginMethod(params: ICallPluginMethodParams): Promise<any>;
@@ -62,7 +62,7 @@ const readyPromise = new Promise<void>((resolve) => {
 
 /**
  * 双阶段初始化。
- * Phase 1: 从 preload 缓存同步加载首帧数据。
+ * Phase 1: 从本地缓存同步加载首帧数据。
  * Phase 2: 异步获取最新数据并更新状态。
  */
 async function setup(): Promise<void> {
@@ -293,7 +293,7 @@ function getPluginPrimaryKey(pluginItem: { platform?: string }): string[] {
 const adapters = {
     /**
      * 获取音源（带音质回退和重试）。
-     * 实际处理在主进程（直接调用插件，无多次 IPC 开销），通过单次 IPC 调用。
+     * 实际处理在 bridge runtime（直接调用插件，无多次 bridge 开销）。
      *
      * @example
      * ```ts
@@ -314,7 +314,7 @@ const adapters = {
 
     /**
      * 获取歌词（含多步回退：本地文件 → 插件 → lrcUrl）。
-     * 实际处理在主进程（需要 fs 访问），通过 IPC 调用。
+     * 实际处理在 bridge runtime（需要文件访问），通过 bridge 调用。
      *
      * @example
      * ```ts
@@ -435,8 +435,7 @@ async function probeMediaSource(media: IPlugin.IMediaSourceResult): Promise<stri
             finalUrl: string;
         }>('probe_media_url', { url: media.url, headers });
 
-        // 非 Tauri 环境（旧 Electron 构建）跳过探活，避免全部误判
-        if (!result) return null;
+        if (!result) return '播放地址探测未返回结果';
 
         if (result.statusCode !== 200 && result.statusCode !== 206) {
             return `播放地址返回 HTTP ${result.statusCode}`;

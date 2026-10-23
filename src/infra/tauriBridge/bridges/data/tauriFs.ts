@@ -54,14 +54,6 @@ export async function removePath(path: string): Promise<void> {
     }
 }
 
-export async function listDir(path: string): Promise<string[]> {
-    try {
-        return (await tauriInvoke<string[]>('fs_read_dir', { path })) ?? [];
-    } catch {
-        return [];
-    }
-}
-
 export async function renamePath(src: string, dest: string): Promise<void> {
     await tauriInvoke('fs_rename', { src, dest });
 }

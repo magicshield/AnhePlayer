@@ -386,11 +386,11 @@ $scale-icon-2xl: 48px;
 // ────────────────────────────────────────────────────────────────────────────
 //
 // 设计决策：采用 Modern CSS Reset 方案（融合 Josh Comeau + Andy Bell 的思路），
-// 针对 Electron 桌面端环境裁剪。相比 normalize.css 更激进地移除浏览器默认样式，
+// 针对桌面端 WebView 裁剪浏览器默认样式，
 // 为设计系统提供干净的起点。
 //
 // 不使用 normalize.css 的理由：
-//   - normalize 的目标是"跨浏览器一致性"，在 Electron 单引擎环境中无此需求
+// normalize 的目标是跨浏览器一致性；桌面端固定使用 WebView2
 //   - normalize 保留了过多默认样式（margin、padding），反而增加覆盖工作量
 //   - 现代 Reset 更轻量、更适合从 Token 出发构建一切样式
 //
@@ -412,14 +412,14 @@ $scale-icon-2xl: 48px;
 html {
     // 使用 token 中的基准字号（rem 基于此）
     font-size: 16px;
-    // 防止 iOS 横屏时字号自动调整（Electron 不需要但保持一致性）
+    // 防止移动设备横屏时字号自动调整
     -webkit-text-size-adjust: 100%;
     // 亚像素抗锯齿 — 暗色背景下文字更清晰
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     // 优化文本渲染
     text-rendering: optimizeLegibility;
-    // 禁用触摸高亮（Electron 桌面端无需）
+    // 禁用触摸高亮
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -585,7 +585,7 @@ dialog {
 }
 
 // 4.3 自定义滚动条 — 基于 ScrollArea 规范
-// Webkit / Blink 引擎（Electron 使用 Chromium）
+// WebKit / Blink 引擎
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;

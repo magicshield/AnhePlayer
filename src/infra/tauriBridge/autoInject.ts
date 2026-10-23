@@ -1,10 +1,9 @@
 /**
- * Tauri ContextBridge 同步自执行注册层
+ * Tauri bridge 同步注册层
  *
- * 在任何模块被 static import 或执行前同步挂载至全局 window[CONTEXT_BRIDGE_KEY]，
+ * 在应用入口加载时同步挂载至全局 window[CONTEXT_BRIDGE_KEY]，
  * 彻底解决 ES Module 顶层求值 (top-level evaluation) 时访问 undefined 导致的致命崩溃和白屏问题。
  */
-import { isTauriEnvironment } from './isTauri';
 import { registerGlobalContextBridge } from './bridges/globalContext';
 import { registerAppConfigBridge } from './bridges/appConfig';
 import { registerSystemUtilBridge } from './bridges/systemUtil';
@@ -16,10 +15,6 @@ import { registerTauriPluginManagerBridge } from './bridges/pluginManagerBridge'
 import { registerNeteaseAccountBridge } from './bridges/neteaseAccountBridge';
 
 export function injectBridgesSync(): void {
-    if (!isTauriEnvironment()) {
-        return;
-    }
-
     try {
         registerGlobalContextBridge();
         registerAppConfigBridge();

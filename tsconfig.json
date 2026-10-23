@@ -16,9 +16,7 @@
         "paths": {
             "*": ["node_modules/*"],
             "@common/*": ["src/common/*"],
-            "@main/*": ["src/main/*"],
             "@renderer/*": ["src/renderer/*"],
-            "@preload/*": ["src/preload/*"],
             "@assets/*": ["src/assets/*"],
             "@appTypes/*": ["src/types/*"],
             "@infra/*": ["src/infra/*"]

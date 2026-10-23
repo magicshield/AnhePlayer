@@ -36,7 +36,7 @@ declare global {
         readonly style: string;
     }
 
-    // ── Navigation API (Chromium 实验性 API，Electron 中可用) ──
+    // ── Navigation API ──
 
     interface Navigation extends EventTarget {
         readonly canGoBack: boolean;
@@ -46,9 +46,4 @@ declare global {
     }
 
     var navigation: Navigation;
-
-    /** Electron 扩展：File 对象包含本地绝对路径 */
-    interface File {
-        readonly path: string;
-    }
 }
