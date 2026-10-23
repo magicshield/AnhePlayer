@@ -1,9 +1,9 @@
 {
-    "version": "1.0.31",
+    "version": "1.0.32",
     "changeLog": [
-        "移除 Electron 运行时、旧打包链路及无用主进程代码，统一使用 Tauri v2 + Vite",
-        "移除协议唤醒和未实现的全局快捷键，保留应用内快捷键与 Tauri 多窗口能力",
-        "清理旧托盘菜单、任务栏缩略图和相关设置项，精简依赖与配置"
+        "新版提示弹窗只保留一个前往下载按钮，统一打开 https://anhe-player.loc.cc",
+        "关于页面的官方网站文字与链接同步改为 https://anhe-player.loc.cc",
+        "更新下载入口不再使用旧公告中的 GitHub 下载直链"
     ],
     "download": ["https://anhe-player.loc.cc"]
 }
