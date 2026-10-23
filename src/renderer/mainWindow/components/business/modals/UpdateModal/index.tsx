@@ -4,6 +4,7 @@ import Modal from '@renderer/mainWindow/components/ui/Modal';
 import { Button } from '@renderer/mainWindow/components/ui/Button';
 import { CheckboxGroup } from '@renderer/mainWindow/components/ui/CheckboxGroup';
 import { syncKV } from '@renderer/common/kvStore';
+import { OFFICIAL_SITE_URL } from '@common/constant';
 import systemUtil from '@infra/systemUtil/renderer';
 import type { IUpdateInfo } from '@appTypes/infra/systemUtil';
 import { clearPendingUpdate } from '@renderer/mainWindow/common/updateNotice';
@@ -24,7 +25,7 @@ export interface UpdateModalProps {
  */
 export default function UpdateModal({ close, updateInfo }: UpdateModalProps) {
     const { t } = useTranslation();
-    const { version, changeLog, download } = updateInfo;
+    const { version, changeLog } = updateInfo;
 
     const [skipChecked, setSkipChecked] = useState(
         () => syncKV.get('update.skipVersion') === version,
@@ -44,16 +45,11 @@ export default function UpdateModal({ close, updateInfo }: UpdateModalProps) {
         [version],
     );
 
-    const handleDownload = useCallback(
-        (url: string) => {
-            clearPendingUpdate();
-            systemUtil.openExternal(url);
-            close();
-        },
-        [close],
-    );
-
-    const hasDownload = download && download.length > 0;
+    const handleDownload = useCallback(() => {
+        clearPendingUpdate();
+        systemUtil.openExternal(OFFICIAL_SITE_URL);
+        close();
+    }, [close]);
 
     return (
         <Modal
@@ -68,22 +64,11 @@ export default function UpdateModal({ close, updateInfo }: UpdateModalProps) {
                         options={[{ value: 'skip', label: t('app.skip_version') }]}
                         onChange={handleSkipChange}
                     />
-                    {hasDownload && (
-                        <div className="update-modal__actions">
-                            {download.map((url, i) => (
-                                <Button
-                                    key={url}
-                                    variant={i === 0 ? 'primary' : 'secondary'}
-                                    size="sm"
-                                    onClick={() => handleDownload(url)}
-                                >
-                                    {download.length > 1
-                                        ? t('app.download_link', { index: i + 1 })
-                                        : t('app.go_download')}
-                                </Button>
-                            ))}
-                        </div>
-                    )}
+                    <div className="update-modal__actions">
+                        <Button variant="primary" size="sm" onClick={handleDownload}>
+                            {t('app.go_download')}
+                        </Button>
+                    </div>
                 </div>
             }
         >

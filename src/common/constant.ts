@@ -2,6 +2,9 @@
  * 全局通用常量
  */
 
+/** 官方网站与软件下载入口 */
+export const OFFICIAL_SITE_URL = 'https://anhe-player.loc.cc';
+
 /** 音质键名，从低到高排列 */
 export const QUALITY_KEYS: IMusic.IQualityKey[] = ['low', 'standard', 'high', 'super'];
 

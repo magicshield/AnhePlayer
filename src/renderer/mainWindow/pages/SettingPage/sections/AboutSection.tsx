@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsCard } from '../components/SettingsCard';
 import { Button } from '@renderer/mainWindow/components/ui/Button';
 import { A } from '@renderer/mainWindow/components/ui/A';
+import { OFFICIAL_SITE_URL } from '@common/constant';
 import systemUtil from '@infra/systemUtil/renderer';
 import { showModal } from '@renderer/mainWindow/components/ui/Modal/modalManager';
 import { Github, type LucideIcon } from 'lucide-react';
@@ -10,7 +11,6 @@ import { Github, type LucideIcon } from 'lucide-react';
 const GITHUB_REPO = 'https://github.com/raclen/AnhePlayer';
 const GITHUB_AUTHOR = 'https://github.com/raclen';
 const GITHUB_ISSUES = 'https://github.com/raclen/AnhePlayer/issues';
-const OFFICIAL_SITE = 'https://github.com/raclen/AnhePlayer';
 const LICENSE_URL = `${GITHUB_REPO}/blob/master/LICENSE`;
 
 const SOCIAL_LINKS_DATA: {
@@ -76,8 +76,8 @@ export function AboutSection() {
                     <div className="p-setting__about-column">
                         <LinkRow
                             label={t('settings.about.official_site_link')}
-                            text="github.com/raclen/AnhePlayer"
-                            url={OFFICIAL_SITE}
+                            text={OFFICIAL_SITE_URL}
+                            url={OFFICIAL_SITE_URL}
                         />
                         <LinkRow label="GitHub" text="AnhePlayer" url={GITHUB_REPO} />
                         <LinkRow

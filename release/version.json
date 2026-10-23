@@ -5,8 +5,5 @@
         "移除协议唤醒和未实现的全局快捷键，保留应用内快捷键与 Tauri 多窗口能力",
         "清理旧托盘菜单、任务栏缩略图和相关设置项，精简依赖与配置"
     ],
-    "download": [
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.31/AnhePlayer_1.0.31_x64-setup.exe",
-        "https://github.com/raclen/AnhePlayer/releases/download/v1.0.31/AnhePlayer_1.0.31_x64_en-US.msi"
-    ]
+    "download": ["https://anhe-player.loc.cc"]
 }

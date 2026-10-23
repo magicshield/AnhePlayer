@@ -217,7 +217,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*anhe*' } | ForEac
 
 **正确做法**：
 
-1. 发版前把 `release/version.json` 的 version/changeLog/download 更新到目标版本，download 指向对应 tag 的 GitHub Release 资产地址。
+1. 发版前把 `release/version.json` 的 version/changeLog 更新到目标版本；download 只保留 `https://anhe-player.loc.cc` 这一个官网下载入口，禁止改回 GitHub Release 资产直链。更新弹窗与“关于”中的官方网站共用 `OFFICIAL_SITE_URL`，弹窗不使用公告中的旧下载地址，避免国内用户被引导到受阻的 GitHub。
 2. `tauri-build.yml` 已加入前置校验（tag 与 version.json.version 不一致直接构建失败）与发布说明生成步骤（Release body 由 version.json 的 changeLog 生成，单一数据源）。
 3. Tauri 端 `check_update` 命令必须实现既有 UPDATE_SOURCES 拉取与版本比较逻辑，否则应用内根本不会展示更新公告。
 
