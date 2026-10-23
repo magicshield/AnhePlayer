@@ -8,6 +8,8 @@
  */
 import { LOCAL_PLUGIN_NAME, SUPPORTED_AUDIO_EXTS } from '@common/constant';
 import { tauriInvoke } from '../../ipc';
+import { hostPathSep, isWindowsHost } from '../../hostPlatform';
+import { fromFileUrl, toFileUrl } from '../../pathUrl';
 
 // ─── 工具 ───
 
@@ -39,20 +41,18 @@ function stripExt(name: string): string {
 }
 
 function joinPath(dir: string, name: string): string {
-    return `${dir.replace(/[\\/]+$/, '')}\\${name}`;
+    return `${dir.replace(/[\\/]+$/, '')}${hostPathSep()}${name}`;
 }
 
 /** 将本地路径转为 file:// URL（与上游 localPlugin 的 url 字段保持同构） */
 function pathToFileUrl(filePath: string): string {
-    const normalized = filePath.replace(/\\/g, '/');
-    return `file:///${normalized.startsWith('/') ? normalized.slice(1) : normalized}`;
+    return toFileUrl(filePath);
 }
 
 function fileUrlToPath(fileUrl: string): string | null {
     if (!fileUrl.startsWith('file:')) return null;
     try {
-        const p = decodeURIComponent(fileUrl.replace(/^file:\/\/\/?/, ''));
-        return p ? p.replace(/\//g, '\\') : null;
+        return fromFileUrl(fileUrl) || null;
     } catch {
         return null;
     }
@@ -69,7 +69,9 @@ function toAssetUrl(filePath: string): string {
         }
     }
     const encoded = encodeURIComponent(filePath);
-    return `http://asset.localhost/${encoded}`;
+    // WKWebView 下 asset 协议挂在 https 域，WebView2 下为 http
+    const scheme = isWindowsHost() ? 'http' : 'https';
+    return `${scheme}://asset.localhost/${encoded}`;
 }
 
 /** 解析 musicItem 的本地路径（localPath 优先，其次 file:/// URL 或裸盘符路径） */
@@ -79,6 +81,7 @@ function resolveLocalPath(musicItem: any): string | null {
     if (typeof u === 'string' && u) {
         if (u.startsWith('file:')) return fileUrlToPath(u);
         if (/^[a-zA-Z]:[\\/]/.test(u)) return u;
+        if (u.startsWith('/')) return u;
     }
     return null;
 }

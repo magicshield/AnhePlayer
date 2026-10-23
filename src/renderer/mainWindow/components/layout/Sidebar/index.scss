@@ -3,6 +3,7 @@
 // ============================================================================
 
 .l-sidebar {
+    position: relative;
     width: var(--size-sidebar-w);
     height: 100%;
     display: flex;
@@ -13,6 +14,18 @@
     border-right: 1px solid var(--color-border-default);
     z-index: var(--z-sidebar);
     padding: var(--space-6) 0 var(--space-6) var(--space-4);
+
+    // 拖拽背景层：铺满侧栏、置于内容之下，空白处可拖窗、按钮不受影响
+    &__drag-region {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+    }
+
+    // macOS：为左上角交通灯让出顶部条，logo 下移避免被遮挡
+    html[data-host='darwin'] & {
+        padding-top: var(--space-10);
+    }
 
     // ── Logo ──
 

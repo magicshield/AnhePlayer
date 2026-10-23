@@ -24,6 +24,9 @@ import localMusic from '@infra/localMusic/renderer';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import { runPostBootstrapTasks } from './postBootstrap';
 import { setupCommandHandlers } from '@renderer/mainWindow/core/commandHandlers';
+import logger from '@infra/logger/renderer';
+import fsUtil from '@infra/fsUtil/renderer';
+import { hasMediaDevices, hasMediaSession, hasSetSinkId } from '@renderer/common/capabilities';
 import { syncKV } from '@renderer/common/kvStore';
 
 // TODO(v1.1.0): Remove this function and its call in bootstrapMainWindow
@@ -73,6 +76,14 @@ export default async function bootstrapMainWindow(): Promise<void> {
 
     // Phase 5: 非播放器相关的 command handler
     setupCommandHandlers();
+
+    // 宿主探针：Rust 已回填 globalContext，且是移植链路（前端→log_entry→stderr）打通的证据
+    logger.info(
+        `[host] platform=${window.globalContext.platform} sep=${fsUtil.pathSep} ` +
+            `userData=${window.globalContext.appPath.userData} ` +
+            `mediaDevices=${hasMediaDevices()} sinkId=${hasSetSinkId()} ` +
+            `mediaSession=${hasMediaSession()}`,
+    );
 
     // Phase 6: 启动后副作用（自动更新插件、检查软件更新），不阻塞 UI
     runPostBootstrapTasks();

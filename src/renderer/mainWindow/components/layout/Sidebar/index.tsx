@@ -70,6 +70,9 @@ export default function Sidebar() {
 
     return (
         <aside className="l-sidebar">
+            {/* ── 拖拽背景层（铺满侧栏，位于内容之下，空白处可拖窗） ── */}
+            <div className="l-sidebar__drag-region" data-tauri-drag-region />
+
             {/* ── Logo ── */}
             <div className="l-sidebar__logo" aria-label={BRAND_NAME} title={BRAND_NAME}>
                 <span className="l-sidebar__logo-text" data-tauri-drag-region>

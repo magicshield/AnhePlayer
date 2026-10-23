@@ -3,18 +3,31 @@
  */
 import { CONTEXT_BRIDGE_KEY } from '@infra/globalContext/common/constant';
 import { tauriInvoke } from '../ipc';
+import { hostPathSep, hostPlatform, isWindowsHost } from '../hostPlatform';
 
-const defaultContext = {
-    appVersion: '1.0.20',
-    appPath: {
-        defaultDownloadPath: 'C:\\Users\\Administrator\\Downloads',
-        temp: 'C:\\Users\\Administrator\\AppData\\Local\\Temp',
-        userData: 'C:\\Users\\Administrator\\AppData\\Roaming\\AnhePlayer',
-        res: '',
-    },
-    platform: 'win32',
-    isWin10OrAbove: true,
-};
+/**
+ * Rust 回填前的兜底上下文。
+ * 路径字段仅占位，但 platform / isWin10OrAbove 会被同步读取（窗口能力判断等），
+ * 必须按宿主平台给出，否则 macOS 上会短暂以 Windows 语义渲染。
+ */
+function buildDefaultContext() {
+    const win = isWindowsHost();
+    const sep = hostPathSep();
+    const home = win ? 'C:\\Users\\Default' : '/Users/Shared';
+    return {
+        appVersion: '0.0.0',
+        appPath: {
+            defaultDownloadPath: `${home}${sep}Downloads`,
+            temp: win ? `${home}\\AppData\\Local\\Temp` : '/tmp',
+            userData: win ? `${home}\\AppData\\Roaming\\AnhePlayer` : `${home}/AnhePlayer`,
+            res: '',
+        },
+        platform: hostPlatform(),
+        isWin10OrAbove: win,
+    };
+}
+
+const defaultContext = buildDefaultContext();
 
 // ─── 就绪信号（Rust 回填真实路径/版本完成） ───
 

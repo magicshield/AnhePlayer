@@ -17,6 +17,20 @@
 //     工具行: flex, items-center, gap-8, text-secondary
 //       btn: 32×32, rounded-pill, hover: bg fill-subtle-hover
 
+// 迷你窗为透明无边框窗口，卡片居中并给 box-shadow 留出边距
+body[data-window='minimode'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+}
+
+// macOS：透明窗口自带原生阴影（贴合圆角、绘制在窗口外、不会被边界裁切）。
+// 窗口已收到卡片尺寸，CSS box-shadow 会被窗口边界硬切出直棱，故关闭，交给系统阴影。
+html[data-host='darwin'] .l-minimode {
+    box-shadow: none;
+}
+
 .l-minimode {
     width: 420px;
     height: 120px;

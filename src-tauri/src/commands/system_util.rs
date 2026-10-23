@@ -9,6 +9,8 @@ pub fn exit_app(app: AppHandle) {
 pub fn minimize_window(window: WebviewWindow, skip_task_bar: Option<bool>) {
     let _ = window.minimize();
     if let Some(true) = skip_task_bar {
+        // macOS 主线程调用 set_skip_taskbar 会触发 tao panic，且该语义在 macOS 无意义
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_skip_taskbar(true);
     }
 }
@@ -17,6 +19,7 @@ pub fn minimize_window(window: WebviewWindow, skip_task_bar: Option<bool>) {
 pub fn show_main_window(app: AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
         // 关闭到托盘时窗口可能被最小化并隐藏任务栏按钮，恢复显示时一并还原
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_skip_taskbar(false);
         let _ = window.unminimize();
         let _ = window.show();

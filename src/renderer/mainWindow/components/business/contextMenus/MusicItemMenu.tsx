@@ -14,6 +14,7 @@ import systemUtil from '@infra/systemUtil/renderer';
 import i18n from '@infra/i18n/renderer';
 import { LOCAL_PLUGIN_NAME } from '@common/constant';
 import { PLAY_QUEUE_SHEET_ID, DOWNLOADED_SHEET_ID } from '@infra/musicSheet/common/constant';
+import { writeClipboardText } from '@renderer/common/capabilities';
 import {
     Fingerprint,
     User,
@@ -40,10 +41,7 @@ export interface MusicItemMenuContext {
 
 /** 复制文本到剪贴板并弹出 toast */
 function copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text).then(
-        () => showToast(i18n.t('common.copied')),
-        () => showToast(i18n.t('common.copied')),
-    );
+    void writeClipboardText(text).then(() => showToast(i18n.t('common.copied')));
 }
 
 /**

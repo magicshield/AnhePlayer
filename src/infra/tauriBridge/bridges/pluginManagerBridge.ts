@@ -35,6 +35,7 @@ import type {
     IPluginMetaAll,
 } from '@appTypes/infra/pluginManager';
 import { tauriInvoke } from '../ipc';
+import { hostPathSep } from '../hostPlatform';
 import { getLyricAdapterWeb } from './pluginManager/lyricAdapter';
 import localPluginDefine from './pluginManager/localPlugin';
 
@@ -44,7 +45,7 @@ const PLUGIN_CACHE_STORAGE_KEY = 'anhe-player-plugin-cache';
 // ─── fs / 哈希工具 ───
 
 function joinPath(dir: string, name: string): string {
-    return `${dir.replace(/[\\/]+$/, '')}\\${name}`;
+    return `${dir.replace(/[\\/]+$/, '')}${hostPathSep()}${name}`;
 }
 
 async function fsReadText(path: string): Promise<string | null> {

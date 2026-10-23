@@ -100,3 +100,6 @@ changqing_chajian.js
 src-tauri/target/
 /temp
 
+
+# macOS 本地移植测试产物（不入库）
+dist-macos/

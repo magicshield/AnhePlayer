@@ -13,8 +13,14 @@ import { registerThemePackBridge } from './bridges/themepackBridge';
 import { registerDataBridges } from './bridges/dataBridges';
 import { registerTauriPluginManagerBridge } from './bridges/pluginManagerBridge';
 import { registerNeteaseAccountBridge } from './bridges/neteaseAccountBridge';
+import { hostPlatform } from './hostPlatform';
 
 export function injectBridgesSync(): void {
+    // 供样式层做宿主降级（WKWebView 大半径模糊开销远高于 Chromium）
+    if (typeof document !== 'undefined') {
+        document.documentElement.dataset.host = hostPlatform();
+    }
+
     try {
         registerGlobalContextBridge();
         registerAppConfigBridge();

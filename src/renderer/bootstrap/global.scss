@@ -361,6 +361,20 @@ $scale-icon-2xl: 48px;
     --icon-2xl: #{$scale-icon-2xl};
 }
 
+// ── macOS (WKWebView) 降级 ──
+// WKWebView 的大半径 filter/backdrop blur 无法像 Chromium 那样稳定留在合成层，
+// 全屏播放页的 100px 环境模糊叠加歌词列表逐帧滚动时会反复重绘位图。
+// 这里收敛半径并把背景固定成独立合成层，视觉接近、开销大幅下降。
+html[data-host='darwin'] {
+    --blur-ambient: 40px;
+    --blur-overlay: 20px;
+
+    .l-fullscreen-player__bg-img {
+        will-change: transform;
+        transform: translateZ(0) scale(1.1);
+    }
+}
+
 // ── 禁用模糊 ──
 // 将所有 blur token 归零并移除 backdrop-filter 合成层，消除 GPU 开销。
 // 启用方式: document.documentElement.classList.add('no-blur')

@@ -6,6 +6,7 @@ import { Select } from '@renderer/mainWindow/components/ui/Select';
 import { useConfigValue } from '@renderer/common/hooks/useConfigValue';
 import appConfig from '@infra/appConfig/renderer';
 import type { IAudioOutputDevice } from '@appTypes/infra/appConfig';
+import { hasSetSinkId, listAudioOutputDevices } from '@renderer/common/capabilities';
 
 /**
  * 播放设置
@@ -29,18 +30,22 @@ export function PlaybackSection() {
     const [selectedDeviceId, setSelectedDeviceId] = useState<string>('default');
     const [audioOutputDevice, setAudioOutputDevice] = useConfigValue('playMusic.audioOutputDevice');
 
+    const canSelectOutputDevice = hasSetSinkId();
+
     useEffect(() => {
-        navigator.mediaDevices.enumerateDevices().then((devices) => {
-            const audioOutputs: IAudioOutputDevice[] = devices
-                .filter((d) => d.kind === 'audiooutput')
-                .map((d) => ({
+        if (!canSelectOutputDevice) {
+            return;
+        }
+        listAudioOutputDevices().then((audioOutputs) => {
+            setOutputDevices(
+                audioOutputs.map((d) => ({
                     deviceId: d.deviceId,
                     label: d.label,
                     groupId: d.groupId,
-                }));
-            setOutputDevices(audioOutputs);
+                })),
+            );
         });
-    }, []);
+    }, [canSelectOutputDevice]);
 
     useEffect(() => {
         if (audioOutputDevice) {
@@ -143,31 +148,36 @@ export function PlaybackSection() {
                     />
                 }
             />
-            <SettingRow
-                label={t('settings.playback.output_device_label')}
-                description={t('settings.playback.output_device_desc')}
-                control={
-                    <Select
-                        value={selectedDeviceId}
-                        onChange={handleDeviceChange}
-                        options={deviceOptions}
+            {/* WKWebView 无 setSinkId，输出设备选择与断连策略在 macOS 上不可用 */}
+            {canSelectOutputDevice && (
+                <>
+                    <SettingRow
+                        label={t('settings.playback.output_device_label')}
+                        description={t('settings.playback.output_device_desc')}
+                        control={
+                            <Select
+                                value={selectedDeviceId}
+                                onChange={handleDeviceChange}
+                                options={deviceOptions}
+                            />
+                        }
                     />
-                }
-            />
-            <SettingRow
-                label={t('settings.playback.device_removed_label')}
-                description={t('settings.playback.device_removed_desc')}
-                control={
-                    <Select
-                        value={whenDeviceRemoved ?? 'play'}
-                        onChange={setWhenDeviceRemoved}
-                        options={[
-                            { value: 'play', label: t('settings.playback.continue_playing') },
-                            { value: 'pause', label: t('settings.playback.pause') },
-                        ]}
+                    <SettingRow
+                        label={t('settings.playback.device_removed_label')}
+                        description={t('settings.playback.device_removed_desc')}
+                        control={
+                            <Select
+                                value={whenDeviceRemoved ?? 'play'}
+                                onChange={setWhenDeviceRemoved}
+                                options={[
+                                    { value: 'play', label: t('settings.playback.continue_playing') },
+                                    { value: 'pause', label: t('settings.playback.pause') },
+                                ]}
+                            />
+                        }
                     />
-                }
-            />
+                </>
+            )}
             <SettingRow
                 label={t('settings.playback.case_sensitive_label')}
                 description={t('settings.playback.case_sensitive_desc')}

@@ -110,6 +110,56 @@
         }
     }
 
+    // ── macOS 交通灯 ──
+
+    &__traffic {
+        position: absolute;
+        top: 12px;
+        left: calc(-1 * var(--size-sidebar-w) + 12px);
+        display: flex;
+        gap: 8px;
+        z-index: 2;
+        -webkit-app-region: no-drag;
+    }
+
+    &__traffic-dot {
+        width: 12px;
+        height: 12px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        font-size: 9px;
+        line-height: 1;
+        font-weight: var(--font-weight-bold);
+        color: transparent;
+        transition: color var(--duration-fast) var(--ease-standard);
+
+        > span {
+            pointer-events: none;
+        }
+
+        &--close {
+            background-color: #ff5f57;
+        }
+
+        &--min {
+            background-color: #febc2e;
+        }
+
+        &--zoom {
+            background-color: #28c840;
+        }
+
+        // 悬停任一盏时三盏同时显出符号，与系统行为一致
+        &:hover {
+            color: rgba(0, 0, 0, 0.55);
+        }
+    }
+
     // ── 窗口控制按钮 ──
 
     &__window-controls {
@@ -209,4 +259,9 @@
         opacity: 1;
         transform: translateY(0);
     }
+}
+
+// macOS 下用交通灯替代 Windows 风格的窗口按钮
+html[data-host='darwin'] .l-topbar__window-controls {
+    display: none;
 }

@@ -10,6 +10,7 @@ import Hls from 'hls.js';
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import { PlayerState, ErrorReason } from '@common/constant';
 import requestForwarder from '@infra/requestForwarder/renderer';
+import { hasMediaSession, hasSetSinkId } from '@renderer/common/capabilities';
 
 // ─── 事件类型 ───
 
@@ -76,16 +77,20 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
     }
 
     prepareTrack(musicItem: IMusicItemSlim): void {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: musicItem.title,
-            artist: musicItem.artist,
-            album: musicItem.album ?? undefined,
-            artwork: musicItem.artwork ? [{ src: musicItem.artwork }] : undefined,
+        this.updateMediaSession((ms) => {
+            ms.metadata = new MediaMetadata({
+                title: musicItem.title,
+                artist: musicItem.artist,
+                album: musicItem.album ?? undefined,
+                artwork: musicItem.artwork ? [{ src: musicItem.artwork }] : undefined,
+            });
         });
         this.setPlayerState(PlayerState.None);
         this.audio.src = '';
         this.audio.removeAttribute('src');
-        navigator.mediaSession.playbackState = 'none';
+        this.updateMediaSession((ms) => {
+            ms.playbackState = 'none';
+        });
     }
 
     setTrackSource(source: IPlugin.IMediaSourceResult, _musicItem: IMusic.IMusicItem): void {
@@ -180,6 +185,10 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
     }
 
     setSinkId(deviceId: string): Promise<void> {
+        // Safari/WKWebView 从未实现 setSinkId，方法不存在时同步调用会抛错
+        if (!hasSetSinkId()) {
+            return Promise.resolve();
+        }
         return (this.audio as any).setSinkId(deviceId);
     }
 
@@ -188,8 +197,10 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
         this.revokeBlobUrl();
         this.audio.src = '';
         this.audio.removeAttribute('src');
-        navigator.mediaSession.metadata = null;
-        navigator.mediaSession.playbackState = 'none';
+        this.updateMediaSession((ms) => {
+            ms.metadata = null;
+            ms.playbackState = 'none';
+        });
     }
 
     destroy(): void {
@@ -200,15 +211,31 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
 
     // ─── Private Methods ───
 
+    /** WKWebView 下 mediaSession 可能不存在，所有系统播控写入都走这里兜底 */
+    private updateMediaSession(mutate: (ms: MediaSession) => void): void {
+        if (!hasMediaSession()) {
+            return;
+        }
+        try {
+            mutate(navigator.mediaSession);
+        } catch {
+            /* 宿主不支持某个字段时忽略 */
+        }
+    }
+
     private bindEvents(): void {
         this.audio.onplaying = () => {
             this.setPlayerState(PlayerState.Playing);
-            navigator.mediaSession.playbackState = 'playing';
+            this.updateMediaSession((ms) => {
+                ms.playbackState = 'playing';
+            });
         };
 
         this.audio.onpause = () => {
             this.setPlayerState(PlayerState.Paused);
-            navigator.mediaSession.playbackState = 'paused';
+            this.updateMediaSession((ms) => {
+                ms.playbackState = 'paused';
+            });
         };
 
         this.audio.onerror = (event) => {

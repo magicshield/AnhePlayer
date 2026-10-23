@@ -161,7 +161,11 @@ export default function NeteaseRecommendPage() {
     const handlePlayAll = useCallback(() => {
         if (filteredSongs.length === 0) return;
         trackPlayer.playMusicWithReplaceQueue(filteredSongs);
-    }, [filteredSongs]);
+        // 私人漫游：注册续取回调，接近队尾时自动取下一批
+        if (activeTab === 'fm') {
+            trackPlayer.setRadioSource(() => neteaseAccount.getPrivateFmSongs());
+        }
+    }, [filteredSongs, activeTab]);
 
     const handleAddToSheet = useCallback(() => {
         if (filteredSongs.length === 0) return;

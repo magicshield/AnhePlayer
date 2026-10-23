@@ -20,6 +20,11 @@ import { addToRecentlyPlayed } from '../recentlyPlayed';
 import appSync from '@infra/appSync/renderer/main';
 import { syncKV } from '@renderer/common/kvStore';
 import { REPEAT_MODE_MAP } from '@renderer/common/repeatModeMap';
+import {
+    hasMediaDevices,
+    hasMediaSession,
+    listAudioOutputDevices,
+} from '@renderer/common/capabilities';
 import { showToast } from '@renderer/mainWindow/components/ui/Toast';
 import i18n from '@infra/i18n/renderer';
 import { type IAudioController, createAudioController } from './audioController';
@@ -116,6 +121,12 @@ class TrackPlayer {
     private lastProgressWriteTime = 0;
     private readonly PROGRESS_WRITE_INTERVAL = 10_000; // 10s
 
+    // ── 私人漫游（无限电台）模式 ──
+    // 队尾接近时，用 fetcher 再取一批 append，避免只在初始几首间循环。
+    private radioFetcher: (() => Promise<IMusic.IMusicItem[]>) | null = null;
+    private radioFetching = false;
+    private readonly RADIO_PREFETCH_THRESHOLD = 2; // 距队尾 <=2 首即续取
+
     // 连续播放错误计数
     private consecutiveErrors = 0;
     private readonly MAX_CONSECUTIVE_ERRORS = 3;
@@ -211,31 +222,31 @@ class TrackPlayer {
             }
         });
 
-        // 9. 监听音频输出设备断开
-        navigator.mediaDevices.addEventListener('devicechange', async () => {
-            try {
-                const savedDevice = appConfig.getConfigByKey('playMusic.audioOutputDevice');
-                if (!savedDevice?.deviceId || savedDevice.deviceId === 'default') return;
+        // 9. 监听音频输出设备断开（WKWebView 无 mediaDevices，能力缺失时整段跳过）
+        if (hasMediaDevices()) {
+            navigator.mediaDevices.addEventListener('devicechange', async () => {
+                try {
+                    const savedDevice = appConfig.getConfigByKey('playMusic.audioOutputDevice');
+                    if (!savedDevice?.deviceId || savedDevice.deviceId === 'default') return;
 
-                await delay(100);
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const stillExists = devices.some(
-                    (d) => d.kind === 'audiooutput' && d.deviceId === savedDevice.deviceId,
-                );
+                    await delay(100);
+                    const devices = await listAudioOutputDevices();
+                    const stillExists = devices.some((d) => d.deviceId === savedDevice.deviceId);
 
-                if (!stillExists) {
-                    this.audioController.setSinkId('').catch(() => {});
+                    if (!stillExists) {
+                        this.audioController.setSinkId('').catch(() => {});
 
-                    const behavior =
-                        appConfig.getConfigByKey('playMusic.whenDeviceRemoved') ?? 'play';
-                    if (behavior === 'pause') {
-                        this.pause();
+                        const behavior =
+                            appConfig.getConfigByKey('playMusic.whenDeviceRemoved') ?? 'play';
+                        if (behavior === 'pause') {
+                            this.pause();
+                        }
                     }
+                } catch {
+                    /* enumerateDevices 失败时静默忽略 */
                 }
-            } catch {
-                /* enumerateDevices 失败时静默忽略 */
-            }
-        });
+            });
+        }
     }
 
     // ─── 播放控制 ───
@@ -249,6 +260,9 @@ class TrackPlayer {
 
         const queue = this.playQueue.queue;
         index = ((index % queue.length) + queue.length) % queue.length;
+
+        // 电台模式：开始播放某位置时若接近队尾，后台预取下一批
+        void this.maybeExtendRadioQueue();
 
         const targetSlim = queue[index];
 
@@ -346,11 +360,46 @@ class TrackPlayer {
         const startItem = options?.startItem;
         const startIndex = startItem ? list.findIndex((it) => isSameMedia(it, startItem)) : 0;
 
+        // 新队列替换即退出电台模式（FM 页会在本方法后再 setRadioSource）
+        this.radioFetcher = null;
+        this.radioFetching = false;
+
         this.playQueue.setQueue(list, {
             playIndex: Math.max(startIndex, 0),
             fromSheetId: options?.fromSheetId,
         });
         await this.playIndex(Math.max(startIndex, 0));
+    }
+
+    /**
+     * 进入私人漫游（无限电台）模式：注册"取下一批"的回调。
+     * 之后每次接近队尾都会自动 append 新批次。
+     */
+    setRadioSource(fetcher: () => Promise<IMusic.IMusicItem[]>): void {
+        this.radioFetcher = fetcher;
+    }
+
+    /** 接近队尾时预取下一批电台歌曲并追加（并发去重；失败静默回退到循环当前队列） */
+    private async maybeExtendRadioQueue(): Promise<void> {
+        const fetcher = this.radioFetcher;
+        if (!fetcher || this.radioFetching) {
+            return;
+        }
+        const remaining = this.playQueue.queue.length - 1 - this.playQueue.getCurrentIndex();
+        if (remaining > this.RADIO_PREFETCH_THRESHOLD) {
+            return;
+        }
+        this.radioFetching = true;
+        try {
+            const next = await fetcher();
+            if (next && next.length > 0) {
+                this.playQueue.append(next);
+            }
+        } catch {
+            /* 取下一批失败：保持现有行为（循环当前队列） */
+        } finally {
+            this.radioFetching = false;
+        }
     }
 
     /** 手动切到下一首（与 repeatMode 无关，始终前进） */
@@ -605,6 +654,9 @@ class TrackPlayer {
     }
 
     private bindMediaSession(): void {
+        if (!hasMediaSession()) {
+            return;
+        }
         navigator.mediaSession.setActionHandler('nexttrack', () => this.skipToNext());
         navigator.mediaSession.setActionHandler('previoustrack', () => this.skipToPrev());
         navigator.mediaSession.setActionHandler('play', () => this.resume());

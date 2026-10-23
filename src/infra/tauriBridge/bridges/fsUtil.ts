@@ -3,6 +3,8 @@
  */
 import { CONTEXT_BRIDGE_KEY } from '@infra/fsUtil/common/constant';
 import { tauriInvoke } from '../ipc';
+import { hostPathSep } from '../hostPlatform';
+import { fromFileUrl, toFileUrl } from '../pathUrl';
 
 export function registerFsUtilBridge(): void {
     const mod = {
@@ -75,29 +77,23 @@ export function registerFsUtilBridge(): void {
             }
         },
 
-        pathToFileUrl: (p: string): string => {
-            const normalized = p.replace(/\\/g, '/');
-            return `file:///${normalized.startsWith('/') ? normalized.slice(1) : normalized}`;
-        },
+        pathToFileUrl: (p: string): string => toFileUrl(p),
 
         addFileScheme: (filePath: string): string => {
             if (filePath.startsWith('file://')) return filePath;
-            const normalized = filePath.replace(/\\/g, '/');
-            return `file:///${normalized.startsWith('/') ? normalized.slice(1) : normalized}`;
+            return toFileUrl(filePath);
         },
 
         fileUrlToPath: (fileUrl: string): string => {
             if (!fileUrl.startsWith('file://')) return fileUrl;
-            let p = fileUrl.replace(/^file:(?:[/]){2,3}/, '');
-            p = decodeURIComponent(p);
-            return p.split('/').join('\\');
+            return fromFileUrl(fileUrl);
         },
 
         normalizePath: (filePath: string): string => {
-            return filePath.replace(/[/\\]+/g, '\\');
+            return filePath.replace(/[/\\]+/g, hostPathSep());
         },
 
-        pathSep: '\\',
+        pathSep: hostPathSep(),
     };
 
     (window as any)[CONTEXT_BRIDGE_KEY] = mod;

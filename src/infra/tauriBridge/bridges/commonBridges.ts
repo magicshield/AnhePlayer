@@ -105,25 +105,36 @@ export function registerCommonBridges(): void {
     };
 
     // 5. AppSync Auxiliary（辅助窗口专属）
+    //    主窗口经 tauri-app-state-sync 全量广播状态，辅助窗在本地合并出快照，
+    //    向 renderer 暴露 getAppState / onStateChange（远端重构后的契约）。
+    let auxState: Record<string, unknown> = {};
+    const auxListeners = new Set<(state: any, changed: any) => void>();
+    tauriListen<Record<string, unknown>>('tauri-app-state-sync', (patch) => {
+        if (!patch || typeof patch !== 'object') {
+            return;
+        }
+        auxState = { ...auxState, ...patch };
+        auxListeners.forEach((cb) => {
+            try {
+                cb(auxState, patch);
+            } catch {
+                /* 单个订阅者异常不影响其他 */
+            }
+        });
+    }).catch(() => {});
+
     (window as any)[CONTEXT_BRIDGE_KEY_AUXILIARY] = {
-        subscribe: (_keys: string[], _onStateChange: (state: any) => void) => {
-            return () => {};
+        getAppState: () => auxState,
+        onStateChange: (cb: (state: any, changed: any) => void) => {
+            auxListeners.add(cb);
+            return () => {
+                auxListeners.delete(cb);
+            };
         },
+        // 主窗口全量广播，无需按 key 定向订阅
+        subscribeAppState: (_keys: string[]) => {},
         sendCommand: (command: string, data?: unknown) => {
             tauriEmit('tauri-command', { command, data }).catch(() => {});
-        },
-        onCommand: (command: string, cb: (data: unknown, from: string) => void) => {
-            let unlistenFn: (() => void) | null = null;
-            tauriListen<{ command: string; data: unknown }>('tauri-command', (payload) => {
-                if (payload && payload.command === command) {
-                    cb(payload.data, 'tauri');
-                }
-            }).then((u) => {
-                unlistenFn = u;
-            });
-            return () => {
-                if (unlistenFn) unlistenFn();
-            };
         },
     };
 }

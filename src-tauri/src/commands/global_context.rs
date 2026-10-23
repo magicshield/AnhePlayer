@@ -23,6 +23,20 @@ pub struct GlobalContext {
     pub is_win10_or_above: bool,
 }
 
+/// 与前端 Node/Electron 语义对齐的 platform 字面量（前端按 'win32' / 'darwin' 分支）
+fn node_platform() -> &'static str {
+    match std::env::consts::OS {
+        "windows" => "win32",
+        "macos" => "darwin",
+        other => other,
+    }
+}
+
+/// 自定义托盘菜单等能力仅存在于 Windows
+fn win10_or_above() -> bool {
+    cfg!(target_os = "windows")
+}
+
 #[tauri::command]
 pub fn global_context_get(app: tauri::AppHandle) -> GlobalContext {
     let download_dir = dirs::download_dir()
@@ -48,7 +62,7 @@ pub fn global_context_get(app: tauri::AppHandle) -> GlobalContext {
             user_data: config_dir,
             res: String::new(),
         },
-        platform: std::env::consts::OS.to_string(),
-        is_win10_or_above: true,
+        platform: node_platform().to_string(),
+        is_win10_or_above: win10_or_above(),
     }
 }

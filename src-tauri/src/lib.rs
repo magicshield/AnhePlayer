@@ -33,6 +33,7 @@ fn read_close_behavior() -> String {
 /// 注意：命名需避开 `system_util::show_main_window` 命令，否则会遮蔽同名命令
 fn restore_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_skip_taskbar(false);
         let _ = window.unminimize();
         let _ = window.show();
@@ -42,6 +43,9 @@ fn restore_main_window(app: &AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 前端经 log_entry 转发的日志依赖 log backend，未 init 时会被静默丢弃
+    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
@@ -138,8 +142,19 @@ pub fn run() {
                     }
                 });
 
-            if let Some(icon) = app.default_window_icon() {
-                tray_builder = tray_builder.icon(icon.clone());
+            // macOS 菜单栏用单色 template 图标（自动适配深浅色栏），
+            // 其它平台沿用彩色应用图标。
+            #[cfg(target_os = "macos")]
+            {
+                tray_builder = tray_builder
+                    .icon(tauri::include_image!("icons/trayTemplate.png"))
+                    .icon_as_template(true);
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                if let Some(icon) = app.default_window_icon() {
+                    tray_builder = tray_builder.icon(icon.clone());
+                }
             }
             tray_builder.build(app)?;
 
@@ -158,9 +173,20 @@ pub fn run() {
                 }
                 api.prevent_close();
                 let _ = window.hide();
+                #[cfg(not(target_os = "macos"))]
                 let _ = window.set_skip_taskbar(true);
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running anhe-player tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building anhe-player tauri application")
+        .run(|app_handle, event| {
+            // macOS：隐藏到托盘后点击 Dock 图标不会自动恢复窗口，需处理 reopen
+            // （等价于 Windows 双击托盘图标；托盘左键已在 on_tray_icon_event 覆盖）
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = event {
+                restore_main_window(app_handle);
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app_handle, event);
+        });
 }

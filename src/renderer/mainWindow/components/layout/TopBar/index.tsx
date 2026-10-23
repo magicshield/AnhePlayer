@@ -10,6 +10,7 @@ import systemUtil from '@infra/systemUtil/renderer';
 import appConfig from '@infra/appConfig/renderer';
 import { searchRoute, RoutePaths } from '../../../routes';
 import { Chip } from '../../ui/Chip';
+import TrafficLights from './TrafficLights';
 import {
     getSearchHistory,
     addSearchHistory,
@@ -158,6 +159,9 @@ export default function TopBar() {
 
     return (
         <header className="l-topbar">
+            {/* ── macOS 交通灯（左上角，非 darwin 宿主返回 null） ── */}
+            <TrafficLights />
+
             {/* ── 拖拽区域 ── */}
             <div className="l-topbar__drag-region" data-tauri-drag-region />
 
