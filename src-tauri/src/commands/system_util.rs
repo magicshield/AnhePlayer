@@ -98,11 +98,22 @@ pub fn open_path(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn show_item_in_folder(path: String) -> Result<bool, String> {
+    let path = path.trim().to_string();
+    // 文件已被移动/删除时不要拉起资源管理器，交由前端提示失败
+    if path.is_empty() || !std::path::Path::new(&path).exists() {
+        return Ok(false);
+    }
+
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         use std::process::Command;
+
+        // explorer 的 /select 解析对引号位置敏感：必须只给路径加引号。
+        // 若整个参数被引号包裹（std::process::Command 对含空格参数的默认行为），
+        // explorer 会把它当成未知项并退回「文档」目录。
         Command::new("explorer")
-            .arg(format!("/select,{}", path))
+            .raw_arg(format!("/select,\"{}\"", path))
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(true)

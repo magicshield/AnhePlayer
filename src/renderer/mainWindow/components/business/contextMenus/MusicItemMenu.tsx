@@ -165,39 +165,43 @@ export function MusicItemMenu(ctx: MusicItemMenuContext): ContextMenuEntry[] {
     if (isSingle) {
         const singleItem = items[0];
         const downloaded = downloadManager.isDownloaded(singleItem);
+        const isLocalMusic = singleItem.platform === LOCAL_PLUGIN_NAME;
+        // 下载反查复用的曲目 platform 不是「本地」，但同样携带 localPath
+        const hasLocalPath =
+            typeof singleItem.localPath === 'string' && singleItem.localPath.length > 0;
 
-        const isLocal = downloaded?.path || singleItem.platform === LOCAL_PLUGIN_NAME;
-
-        if (isLocal) {
+        if (downloaded?.path || isLocalMusic || hasLocalPath) {
             entries.push({
                 id: 'reveal-in-explorer',
                 icon: <FolderOpen />,
-                label: i18n.t('download.reveal_in_explorer'),
+                label: i18n.t(
+                    isLocalMusic ? 'local_music.reveal_in_explorer' : 'download.reveal_in_explorer',
+                ),
                 onClick: async () => {
                     let localFilePath: string | null = null;
 
                     try {
                         if (downloaded?.path) {
                             localFilePath = downloaded.path;
-                        } else if (singleItem.platform === LOCAL_PLUGIN_NAME) {
-                            // 获取raw
+                        } else if (hasLocalPath) {
+                            // 本地曲库条目直接携带磁盘路径，优先于 url 解析
+                            localFilePath = singleItem.localPath;
+                        } else if (
+                            typeof singleItem.url === 'string' &&
+                            singleItem.url.startsWith('file:')
+                        ) {
+                            localFilePath = fsUtil.fileUrlToPath(singleItem.url);
+                        } else {
+                            const rawItem = await musicSheet.getRawMusicItem(
+                                singleItem.platform,
+                                singleItem.id,
+                            );
                             if (
-                                typeof singleItem.url === 'string' &&
-                                singleItem.url.startsWith('file:')
+                                rawItem &&
+                                typeof rawItem.url === 'string' &&
+                                rawItem.url.startsWith('file:')
                             ) {
-                                localFilePath = fsUtil.fileUrlToPath(singleItem.url);
-                            } else {
-                                const rawItem = await musicSheet.getRawMusicItem(
-                                    singleItem.platform,
-                                    singleItem.id,
-                                );
-                                if (
-                                    rawItem &&
-                                    typeof rawItem.url === 'string' &&
-                                    rawItem.url.startsWith('file:')
-                                ) {
-                                    localFilePath = fsUtil.fileUrlToPath(rawItem.url);
-                                }
+                                localFilePath = fsUtil.fileUrlToPath(rawItem.url);
                             }
                         }
 
