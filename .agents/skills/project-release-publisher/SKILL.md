@@ -1,229 +1,247 @@
 ---
 name: project-release-publisher
-description: Run the AnhePlayer project release workflow end to end. Use this skill whenever the user asks to bump/increase the version, rerun GitHub Actions packaging, publish to GitHub Release, fix a release with missing assets, package installers, create a new tag, or "发版/打包/发布到 release". This skill is specifically for this repository's package.json + release/version.json + build.yml + release.yml flow and should be used even if the user phrases the request casually.
+description: Run the current AnhePlayer Tauri release workflow end to end. Use whenever the user asks to bump the version, build installers, create a release, push a release tag, rerun packaging, or repair missing v* release assets.
 ---
 
-# Project Release Publisher
+# AnhePlayer Release Publisher
 
-Use this skill to release AnhePlayer through GitHub Actions without skipping the packaging step.
+Use this skill to publish AnhePlayer through the repository's current Tauri workflow. Always inspect the workflow and version sources before acting; do not rely on an older Electron or split Build/Release process.
 
-The release has two separate workflows:
+## Current Release Architecture
 
-- `.github/workflows/build.yml`: manually builds artifacts for Windows, macOS, and Linux.
-- `.github/workflows/release.yml`: manually takes a successful Build run ID, downloads its artifacts, creates/reuses the tag, and publishes/uploads GitHub Release assets.
+There is one workflow:
 
-The usual goal is: bump version, commit and push, run Build, verify artifacts, run Release, verify the published release.
+- `.github/workflows/tauri-build.yml`
 
-## Release Files
+It has two trigger modes with different semantics:
 
-Update these files for a normal version bump:
+- Push a `v*` tag: build Windows packages, upload the Actions artifact, generate release notes, and publish the GitHub Release.
+- `workflow_dispatch`: validation build only. It uploads the Actions artifact but must not create a tag or GitHub Release.
+
+Do not look for or invoke `build.yml` / `release.yml`; those workflows no longer exist.
+
+The normal release path is:
+
+1. Inspect the worktree and remote state.
+2. Choose the next unused version.
+3. Synchronize all version sources and the user-facing changelog.
+4. Run local checks.
+5. Commit and push `master`.
+6. Create and push an annotated `v<VERSION>` tag.
+7. Watch `tauri-build.yml` to completion.
+8. Verify the published Release and both installer assets.
+
+## Version Sources
+
+A release version must be synchronized in all five files:
 
 - `package.json`: root `version`
+- `src-tauri/Cargo.toml`: `[package].version`
+- `src-tauri/Cargo.lock`: the `[[package]]` entry whose name is `anhe-player`
+- `src-tauri/tauri.conf.json`: root `version`
 - `release/version.json`: `version` and `changeLog`
 
-Do not edit `pnpm-lock.yaml` just for the app version; this project's lockfile does not store the root package version.
+Do not edit `pnpm-lock.yaml` solely for an application version bump.
 
-Keep `release/version.json.download` unless the user explicitly gives a new download link.
+Keep `release/version.json.download` as:
+
+```json
+["https://anhe-player.loc.cc"]
+```
+
+unless the user explicitly changes the official download policy.
 
 ## Preflight
 
-Start by reading the current state:
+Read the current repository and authentication state:
 
 ```bash
 git status --short --branch
 git log --oneline -5
 git tag --sort=-version:refname | head -10
-node -p "require('./package.json').version"
-sed -n '1,160p' release/version.json
 gh auth status
 ```
 
-Also check whether the target version already exists:
+Read the five version sources and the actual workflow before editing. If the worktree was already dirty, inspect every change and preserve unrelated user work.
+
+If the user did not specify a version, increment the patch version. Before using it, confirm that neither a local/remote tag nor a GitHub Release already exists:
 
 ```bash
-gh release view v<VERSION> --repo raclen/AnhePlayer --json tagName,name,isDraft,isPrerelease,url,assets 2>&1 || true
-git ls-remote --tags origin v<VERSION>
+git tag -l v<VERSION>
+git ls-remote --tags origin refs/tags/v<VERSION>
+gh release view v<VERSION> --repo raclen/AnhePlayer \
+  --json tagName,name,isDraft,isPrerelease,url,assets 2>&1 || true
 ```
 
-If the worktree is dirty before the release work starts, inspect the changes. Do not overwrite unrelated user changes. If unrelated changes exist, leave them alone and only stage the release files you touched.
+Never reuse an existing version unless the user explicitly asks to repair that release.
 
-## Choose Version
+## Edit Release Metadata
 
-If the user gives an explicit version, use it.
+Update all five version sources. `release/version.json.changeLog` must contain concise, user-facing changes for this release, not internal implementation notes. Keep the official download URL unchanged.
 
-If the user asks to "upgrade the version" without a number, increment the patch version:
-
-- `1.0.9` -> `1.0.10`
-- `1.0.10` -> `1.0.11`
-
-Avoid reusing a version that already has a tag or published release unless the user explicitly asks to repair that existing release.
-
-## Edit Version Metadata
-
-Update `package.json` and `release/version.json`.
-
-The `release/version.json.changeLog` should describe the user-facing release. If the version is primarily a republish to fix missing assets, say that clearly and include the feature/fix summary from the intended release.
-
-After editing:
+Example consistency check:
 
 ```bash
-node -e "const pkg=require('./package.json'); const rel=require('./release/version.json'); console.log(pkg.version, rel.version); if (pkg.version !== rel.version) process.exit(1)"
-pnpm exec prettier --check package.json release/version.json .github/workflows/release.yml
-git diff -- package.json release/version.json .github/workflows/release.yml
+node -e "
+const fs = require('fs');
+const versions = {
+  package: require('./package.json').version,
+  release: require('./release/version.json').version,
+  tauri: require('./src-tauri/tauri.conf.json').version,
+  cargo: fs.readFileSync('./src-tauri/Cargo.toml', 'utf8').match(/^version = \"([^\"]+)\"/m)[1],
+  lock: fs.readFileSync('./src-tauri/Cargo.lock', 'utf8').match(/name = \"anhe-player\"\r?\nversion = \"([^\"]+)\"/)[1],
+};
+console.log(versions);
+if (new Set(Object.values(versions)).size !== 1) process.exit(1);
+"
 ```
 
-If you change workflow files, include them in the formatting check. If you only changed version files, checking those two files is enough.
+The tag workflow also rejects a tag whose version does not match `release/version.json.version`.
 
-## Commit And Push
+## Local Verification
 
-Commit only the release-related files.
+Run checks appropriate to the changed files before committing:
 
 ```bash
-git add package.json release/version.json
-git commit -m "chore: prepare <VERSION> release"
-git push origin master
+./node_modules/.bin/prettier --check <changed frontend/config/docs files>
+./node_modules/.bin/eslint <changed TypeScript/TSX files>
+./node_modules/.bin/vite build
+rustfmt --edition 2021 --check <changed Rust files>
+git diff --check
 ```
 
-If workflow fixes are required to make release reliable, stage those files too and keep the commit message release-focused.
+On this development machine, `pnpm` may run a dependency-state check and attempt to reinstall optional packages. When dependencies already exist and only tool execution is needed, call the binaries in `node_modules/.bin` directly instead of repeatedly triggering installation.
 
-## Trigger Build
+The local machine has no usable MSVC linker, so a successful Vite build and `rustfmt --check` do not replace the GitHub Actions Tauri build. The CI result is the Rust/package validation authority.
 
-Run the Build workflow from `master`:
+## Commit And Push Master
+
+Review the complete release diff, then stage only the intended fix, documentation, and version files. Commit messages must be in Chinese and release-focused.
 
 ```bash
-gh workflow run build.yml --repo raclen/AnhePlayer --ref master
-sleep 5
-gh run list --repo raclen/AnhePlayer --workflow Build --limit 5 --json databaseId,headSha,status,conclusion,createdAt,url,displayTitle
+git add <intended files>
+git commit -m "发布：准备 <VERSION>，<简要说明>"
+git push origin refs/heads/master:refs/heads/master
 ```
 
-Pick the run whose `headSha` equals the commit you just pushed.
+If local hooks are blocked solely by the known pnpm non-interactive dependency check, first run the equivalent Prettier/ESLint/build checks manually, then use `git commit --no-verify`. Do not use `--no-verify` to bypass a real check failure.
+
+After pushing, require the remote `master` SHA to match local `HEAD`:
+
+```bash
+git rev-parse HEAD
+git ls-remote origin refs/heads/master
+```
+
+## Create The Release Tag
+
+Create an annotated tag on the verified release commit and push the explicit ref:
+
+```bash
+git tag -a v<VERSION> -m "发布 <VERSION>：<简要说明>"
+git push origin refs/tags/v<VERSION>
+```
+
+Pushing the tag is the release trigger. Do not use `workflow_dispatch` when the goal is to publish a release.
+
+## Watch The Workflow
+
+Locate the run whose `headSha` equals the tagged commit, `headBranch` equals `v<VERSION>`, and event is `push`:
+
+```bash
+gh run list --repo raclen/AnhePlayer --workflow tauri-build.yml --limit 5 \
+  --json databaseId,headSha,headBranch,event,status,conclusion,createdAt,url,displayTitle
+```
 
 Watch it to completion:
 
 ```bash
-gh run watch <BUILD_RUN_ID> --repo raclen/AnhePlayer --exit-status
+gh run watch <RUN_ID> --repo raclen/AnhePlayer --exit-status
 ```
 
-Keep the user updated while long jobs run. Do not finish your turn while a watch or packaging session is still running.
+Keep the user informed while the run is active. Do not declare success while the workflow is still running.
 
-## Expected Build Jobs
+The current workflow has one expected job:
 
-Expected jobs:
+- `build-tauri (windows-latest)`
 
-- `build-meta`
-- `build-windows`
-- `build-macos-x64`
-- `build-macos-arm64`
-- `build-linux`
-- `build-windows-legacy` is intentionally skipped because `if: false`
+Important steps include:
 
-Expected artifacts after a successful build:
+- Verify `release/version.json` matches the tag
+- Build Tauri App
+- Upload Windows Artifacts
+- Generate release notes from `release/version.json`
+- Publish GitHub Release
+
+## Expected Outputs
+
+A successful tag build should create:
+
+1. An Actions artifact named `AnhePlayer-Tauri-Windows`, containing the release EXE/MSI outputs.
+2. A non-draft, non-prerelease GitHub Release named `AnhePlayer v<VERSION>`.
+3. Exactly these two public release assets (version substituted):
 
 ```text
-build-meta
-AnhePlayer-<VERSION>-win32-x64-setup
-AnhePlayer-<VERSION>-win32-x64-portable
-AnhePlayer-<VERSION>-darwin-x64
-AnhePlayer-<VERSION>-darwin-arm64
-AnhePlayer-<VERSION>-linux-amd64-deb
-AnhePlayer-<VERSION>-linux-amd64-rpm
+AnhePlayer_<VERSION>_x64-setup.exe
+AnhePlayer_<VERSION>_x64_en-US.msi
 ```
 
-Verify artifacts with:
+The workflow currently publishes Windows only. Do not expect macOS/Linux assets or a portable ZIP.
+
+## Failure Handling
+
+Inspect the failed job and logs before changing code or rerunning:
 
 ```bash
-gh api repos/raclen/AnhePlayer/actions/runs/<BUILD_RUN_ID>/artifacts --paginate \
-  --jq '.artifacts[] | [.name, .size_in_bytes, .expired] | @tsv' | sort
+gh run view <RUN_ID> --repo raclen/AnhePlayer --json status,conclusion,jobs,url
+gh run view <RUN_ID> --repo raclen/AnhePlayer --log-failed
 ```
 
-The Release workflow will upload these six files:
+Rules:
 
-```text
-AnhePlayer-<VERSION>-win32-x64-setup.exe
-AnhePlayer-<VERSION>-win32-x64-portable.zip
-AnhePlayer-<VERSION>-darwin-x64.dmg
-AnhePlayer-<VERSION>-darwin-arm64.dmg
-AnhePlayer-<VERSION>-linux-amd64.deb
-AnhePlayer-<VERSION>-linux-amd64.rpm
-```
+- Version guard failure: fix all version sources, commit, and create a new tag. Do not move an already published tag silently.
+- Compile/package failure: fix the root cause, push a new commit, and normally bump to the next patch version if the failed tag was already published or externally visible.
+- Transient GitHub artifact/network failure: rerun failed jobs, then re-check both the Actions artifact and Release assets.
+- Do not call a release complete when the workflow succeeded but public assets are missing.
 
-## Handling Build Failures
-
-If the build fails before packaging, inspect the failed job log and fix the underlying issue before release:
+For a validation-only build with no Release, explicitly use:
 
 ```bash
-gh run view <BUILD_RUN_ID> --repo raclen/AnhePlayer --json status,conclusion,jobs,url
-gh run view <BUILD_RUN_ID> --repo raclen/AnhePlayer --job <JOB_ID> --log | tail -220
+gh workflow run tauri-build.yml --repo raclen/AnhePlayer --ref master
 ```
 
-Do not publish a release from a failed build unless you have verified all required artifacts exist.
-
-If a job succeeds through packaging but fails only on `actions/upload-artifact` with a transient network error such as `Failed to CreateArtifact: Unable to make request: ENOTFOUND`, rerun failed jobs:
-
-```bash
-gh run rerun <BUILD_RUN_ID> --repo raclen/AnhePlayer --failed
-gh run watch <BUILD_RUN_ID> --repo raclen/AnhePlayer --exit-status
-```
-
-Then re-check the artifact list. This exact transient failure has happened on `build-macos-x64`; rerunning the failed job is the right first recovery.
-
-## Trigger Release
-
-Only run Release after Build concludes `success` and the artifact list is complete.
-
-```bash
-gh workflow run release.yml --repo raclen/AnhePlayer --ref master -f run_id=<BUILD_RUN_ID>
-sleep 5
-gh run list --repo raclen/AnhePlayer --workflow Release --limit 5 --json databaseId,headSha,status,conclusion,createdAt,url,displayTitle
-```
-
-Pick the Release run whose `headSha` equals the release commit. Watch it:
-
-```bash
-gh run watch <RELEASE_RUN_ID> --repo raclen/AnhePlayer --exit-status
-```
-
-The Release workflow reads `build-meta/build-meta.json`, so the tag and release version come from the Build run, not from a locally typed version.
+A dispatch run creating a tag or Release is a workflow regression and must be fixed before further releases.
 
 ## Post-Release Verification
 
-Verify all of these before telling the user it is done:
+Verify the run, tag, Release, and assets:
 
 ```bash
-gh release view v<VERSION> --repo raclen/AnhePlayer --json tagName,name,isDraft,isPrerelease,publishedAt,url,assets
+gh run view <RUN_ID> --repo raclen/AnhePlayer --json status,conclusion,url,jobs
+gh release view v<VERSION> --repo raclen/AnhePlayer \
+  --json tagName,name,isDraft,isPrerelease,publishedAt,url,assets
 git fetch --tags origin v<VERSION>
 git show --no-patch --pretty=fuller v<VERSION>
-gh run view <BUILD_RUN_ID> --repo raclen/AnhePlayer --json status,conclusion,url
-gh run view <RELEASE_RUN_ID> --repo raclen/AnhePlayer --json status,conclusion,url
 git status --short --branch
 ```
 
-The final release should normally be:
+Required final state:
 
-- `isDraft: false`
-- `isPrerelease: false` for `master` releases
-- exactly six uploaded installer/package assets
-- tag `v<VERSION>` pointing to the release commit
-- Build and Release workflow runs both `success`
-
-## Repairing An Existing Release With Missing Assets
-
-If the user asks to repair an already published release, first check whether a successful Build run exists for the same commit and version.
-
-If it does, you can run `release.yml` with that Build run ID; the workflow now reuses an existing tag and uploads assets with `--clobber`.
-
-If the user asks for a clean new release instead, bump to the next patch version and use the normal flow.
+- Workflow conclusion is `success`.
+- Tag `v<VERSION>` points to the intended release commit.
+- Release is neither draft nor prerelease.
+- Both NSIS setup EXE and MSI assets are visible.
+- Local `master` matches `origin/master` and the worktree contains no unintended changes.
 
 ## Final Response
 
-Keep the final response short and concrete. Include:
+Keep the final report short and concrete. Include:
 
-- version released
+- released version
 - release URL
-- commit hash
-- Build run URL
-- Release run URL
-- list of uploaded assets or asset count
-- any recovery action taken, such as rerunning a failed macOS x64 upload job
+- release commit hash
+- workflow run URL
+- the two published asset names
+- any rerun or recovery action taken
 
-Do not say the release is complete until GitHub Release assets are visible through `gh release view`.
+Never say the release is complete before `gh release view` confirms the public assets.
