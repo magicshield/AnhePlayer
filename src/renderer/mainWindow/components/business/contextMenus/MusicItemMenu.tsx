@@ -13,6 +13,7 @@ import fsUtil from '@infra/fsUtil/renderer';
 import systemUtil from '@infra/systemUtil/renderer';
 import i18n from '@infra/i18n/renderer';
 import { LOCAL_PLUGIN_NAME } from '@common/constant';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import { PLAY_QUEUE_SHEET_ID, DOWNLOADED_SHEET_ID } from '@infra/musicSheet/common/constant';
 import {
     Fingerprint,
@@ -94,6 +95,29 @@ export function MusicItemMenu(ctx: MusicItemMenuContext): ContextMenuEntry[] {
         }
 
         entries.push({ type: 'separator' });
+    }
+
+    // 直播电台只保留队列相关操作，避免误触收藏、下载或歌曲元数据功能。
+    if (items.some(isRadioBrowserMedia)) {
+        entries.push({
+            id: 'play-next',
+            icon: <ListEnd />,
+            label: i18n.t('playback.next_play'),
+            onClick: () => {
+                trackPlayer.addNext(items);
+                showToast(i18n.t('playback.added_to_next'));
+            },
+        });
+        if (sheetId === PLAY_QUEUE_SHEET_ID) {
+            entries.push({
+                id: 'remove-from-queue',
+                icon: <Trash2 />,
+                label: i18n.t('playback.remove_from_queue'),
+                danger: true,
+                onClick: () => trackPlayer.removeMusic(items),
+            });
+        }
+        return entries;
     }
 
     // ── 下一首播放 ──

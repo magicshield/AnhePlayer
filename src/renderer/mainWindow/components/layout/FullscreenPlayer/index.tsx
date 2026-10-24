@@ -10,6 +10,7 @@ import { DesktopLyric } from '@renderer/common/icons';
 import { useAtomValue } from 'jotai/react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@common/cn';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import { transition as motionTransition } from '@common/motionTokens';
 import { useCurrentMusic, useLyric } from '@renderer/mainWindow/core/trackPlayer/hooks';
 import { useConfigValue } from '@renderer/common/hooks/useConfigValue';
@@ -37,6 +38,7 @@ const overlayVariants = {
 const FullscreenPlayer = memo(function FullscreenPlayer() {
     const open = useAtomValue(fullscreenPlayerOpenAtom);
     const currentMusic = useCurrentMusic();
+    const isLive = isRadioBrowserMedia(currentMusic);
     const { t } = useTranslation();
 
     // 歌词设置状态
@@ -197,7 +199,10 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                                 />
 
                                 {/* 右下角工具栏：翻译 / 桌面歌词 / 设置 */}
-                                <div className="l-fullscreen-player__settings-anchor">
+                                <div
+                                    className="l-fullscreen-player__settings-anchor"
+                                    hidden={isLive}
+                                >
                                     <button
                                         className={cn(
                                             'l-fullscreen-player__tool-btn',

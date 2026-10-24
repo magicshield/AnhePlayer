@@ -2,6 +2,7 @@ import { useCallback, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next';
 import { Download, CircleCheckBig, LoaderCircle, CircleAlert } from 'lucide-react';
 import { cn } from '@common/cn';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import { LOCAL_PLUGIN_NAME } from '@common/constant';
 import downloadManager, {
     useMusicDownloaded,
@@ -50,6 +51,7 @@ export function DownloadButton({
 }: DownloadButtonProps) {
     const { t } = useTranslation();
     const isLocal = musicItem.platform === LOCAL_PLUGIN_NAME;
+    const isRadio = isRadioBrowserMedia(musicItem);
     const downloaded = useMusicDownloaded(musicItem);
     const taskStatus = useMusicDownloadTask(musicItem);
     const isError = taskStatus === 'error';
@@ -79,6 +81,8 @@ export function DownloadButton({
         },
         [isInactive, isError, musicItem],
     );
+
+    if (isRadio) return null;
 
     let ariaLabel: string;
     let icon: ReactNode;

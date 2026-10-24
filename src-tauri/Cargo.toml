@@ -1,6 +1,6 @@
 [package]
 name = "anhe-player"
-version = "1.0.33"
+version = "1.0.34"
 description = "AnhePlayer Tauri v2 Core"
 authors = ["raclen"]
 edition = "2021"

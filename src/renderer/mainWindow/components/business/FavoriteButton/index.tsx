@@ -2,7 +2,8 @@ import { useCallback, useRef, type HTMLAttributes } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react';
 import { cn } from '@common/cn';
-import musicSheet, { useMusicIsFavorite } from '@infra/musicSheet/renderer';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
+import musicSheet, { useMusicIsFavorite, useRadioIsFavorite } from '@infra/musicSheet/renderer';
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import './index.scss';
 
@@ -40,7 +41,10 @@ export function FavoriteButton({
     ...rest
 }: FavoriteButtonProps) {
     const { t } = useTranslation();
-    const isFavorite = useMusicIsFavorite(musicItem);
+    const isRadio = isRadioBrowserMedia(musicItem);
+    const isMusicFavorite = useMusicIsFavorite(musicItem);
+    const isRadioFavorite = useRadioIsFavorite(musicItem);
+    const isFavorite = isRadio ? isRadioFavorite : isMusicFavorite;
     const lockRef = useRef(false);
 
     const handleClick = useCallback(
@@ -49,7 +53,10 @@ export function FavoriteButton({
             if (lockRef.current) return;
             lockRef.current = true;
 
-            if (isFavorite) {
+            if (isRadio) {
+                if (isFavorite) musicSheet.removeRadioFavorite(musicItem);
+                else musicSheet.addRadioFavorite(musicItem);
+            } else if (isFavorite) {
                 musicSheet.removeMusicFromFavorite(musicItem);
             } else {
                 musicSheet.addMusicToFavorite(musicItem);
@@ -59,7 +66,7 @@ export function FavoriteButton({
                 lockRef.current = false;
             }, 300);
         },
-        [isFavorite, musicItem],
+        [isFavorite, isRadio, musicItem],
     );
 
     return (
@@ -73,7 +80,9 @@ export function FavoriteButton({
             )}
             aria-pressed={isFavorite}
             aria-label={
-                isFavorite ? t('playlist.remove_from_favorites') : t('playlist.add_to_favorites')
+                isRadio
+                    ? t(isFavorite ? 'radio.remove_favorite' : 'radio.add_favorite')
+                    : t(isFavorite ? 'playlist.remove_from_favorites' : 'playlist.add_to_favorites')
             }
             onClick={handleClick}
             onDoubleClick={(e) => e.stopPropagation()}

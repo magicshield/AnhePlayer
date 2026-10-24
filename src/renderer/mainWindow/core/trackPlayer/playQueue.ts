@@ -11,6 +11,7 @@ import { createIndexMap, type IIndexMap } from '@common/indexMap';
 import musicItemToSlim from '@common/musicItemToSlim';
 import MutationQueue from '@common/mutationQueue';
 import { INTERNAL_SLIM_KEY } from '@common/constant';
+import { isRadioBrowserMedia, type IRadioBrowserMusicItem } from '@common/radioBrowser';
 import { syncKV } from '@renderer/common/kvStore';
 import { playQueueBridge } from '@infra/musicSheet/renderer';
 import { store, musicQueueAtom } from './store';
@@ -171,6 +172,46 @@ class PlayQueue {
         this.mutationQueue.enqueue(() =>
             playQueueBridge.add(items as IMusic.IMusicItem[], this.slimList.length),
         );
+    }
+
+    /**
+     * 将电台写入可复用调谐槽，避免浏览时不断扩充播放队列。
+     * @returns 电台在队列中的位置
+     */
+    tuneRadioSlot(station: IRadioBrowserMusicItem): number {
+        const exactIndex = this.findIndex(station);
+        let targetIndex = exactIndex;
+        if (targetIndex < 0) {
+            const current = this.getCurrentMusic();
+            targetIndex = isRadioBrowserMedia(current)
+                ? this.currentIndex
+                : this.slimList.findIndex(isRadioBrowserMedia);
+        }
+
+        const slim = musicItemToSlim(station);
+        if (targetIndex < 0) {
+            targetIndex = this.slimList.length;
+            this.slimList = [...this.slimList, slim];
+        } else {
+            const previous = this.slimList[targetIndex];
+            if (previous) this.rawItemCache.delete(this.keyOf(previous));
+            this.slimList = this.slimList.map((item, index) =>
+                index === targetIndex ? slim : item,
+            );
+        }
+
+        this.rawItemCache.set(this.keyOf(station), station);
+        this.rebuildIndexMap();
+        if (this._isShuffleActive) this.regenerateShuffleOrder();
+        this.syncAtom();
+
+        const persistedItems = this.slimList.map((item, index) =>
+            index === targetIndex ? station : item,
+        );
+        this.mutationQueue.enqueue(() =>
+            playQueueBridge.set(persistedItems as IMusic.IMusicItem[]),
+        );
+        return targetIndex;
     }
 
     /** 移除指定歌曲 */

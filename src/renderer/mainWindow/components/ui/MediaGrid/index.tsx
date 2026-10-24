@@ -5,6 +5,7 @@ import React, {
     type MouseEvent as ReactMouseEvent,
     type ReactNode,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@common/cn';
@@ -18,22 +19,32 @@ import './index.scss';
 // Types
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface MediaGridProps {
-    /** 数据列表（歌单 / 专辑 / 排行榜等） */
-    data: IMusic.IMusicSheetItem[];
+export interface IMediaGridItem {
+    id: string;
+    title: string;
+    artwork?: string;
+    artist?: string;
+    platform?: string;
+}
+
+export interface MediaGridProps<T extends IMediaGridItem = IMusic.IMusicSheetItem> {
+    /** 数据列表（歌单 / 专辑 / 排行榜 / 电台等） */
+    data: T[];
     /** 卡片点击 */
-    onItemClick?: (item: IMusic.IMusicSheetItem) => void;
+    onItemClick?: (item: T) => void;
     /** 卡片右键 */
-    onItemContextMenu?: (item: IMusic.IMusicSheetItem, e: ReactMouseEvent) => void;
+    onItemContextMenu?: (item: T, e: ReactMouseEvent) => void;
     /** 播放按钮点击（传入后显示播放 FAB） */
-    onPlayClick?: (item: IMusic.IMusicSheetItem) => void;
+    onPlayClick?: (item: T) => void;
+    /** 自定义副标题 */
+    getSubtitle?: (item: T) => string | undefined;
 
     // ── 加载状态 ──
     /** 请求状态 */
     requestStatus?: RequestStatus;
-    /** 首次加载失败时的重试回调（传入后 StatusPlaceholder 展示"重试"按钮） */
+    /** 首次加载失败时的重试回调 */
     onRetry?: () => void;
-    /** 错误态文案（不传则使用 StatusPlaceholder 默认值 "加载失败"） */
+    /** 错误态文案 */
     errorTitle?: string;
     /** 空态文案 */
     emptyTitle?: string;
@@ -60,24 +71,13 @@ export interface MediaGridProps {
 // MediaGrid — 主组件
 // ────────────────────────────────────────────────────────────────────────────
 
-/**
- * MediaGrid — 模式组件
- *
- * 响应式媒体卡片网格，用于展示专辑、歌单、歌手等。
- *
- * 设计稿还原（像素级）：
- *   网格: repeat(auto-fill, minmax(160px, 1fr)), gap 24px
- *   卡片: padding 12px, radius-card, bg-surface, hover bg-surface-raised, transition moderate
- *   封面: aspect-ratio 1/1, radius-control, shadow-sm
- *   标题: 13px semibold, truncate
- *   副标题: 12px secondary, truncate
- *   PlayFAB: 36×36, bg brand, pill, opacity 0→1 on hover
- */
-export function MediaGrid({
+/** 响应式媒体卡片网格。 */
+export function MediaGrid<T extends IMediaGridItem = IMusic.IMusicSheetItem>({
     data,
     onItemClick,
     onItemContextMenu,
     onPlayClick,
+    getSubtitle,
     requestStatus,
     onRetry,
     errorTitle,
@@ -89,8 +89,8 @@ export function MediaGrid({
     onLoadMoreRetry,
     placeholderIcon,
     className,
-}: MediaGridProps) {
-    // ── IntersectionObserver 哨兵（加载更多） ──
+}: MediaGridProps<T>) {
+    const { t } = useTranslation();
     const sentinelRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -111,7 +111,6 @@ export function MediaGrid({
         return () => observer.disconnect();
     }, [enableLoadMore, onLoadMore, loadMoreStatus]);
 
-    // ── 首次加载占位 ──
     if (data.length === 0) {
         if (requestStatus === RequestStatus.Pending) {
             return <StatusPlaceholder status={RequestStatus.Pending} />;
@@ -135,7 +134,7 @@ export function MediaGrid({
                     status={RequestStatus.Done}
                     isEmpty
                     emptyIcon={emptyIcon}
-                    emptyTitle={emptyTitle ?? '暂无内容'}
+                    emptyTitle={emptyTitle ?? t('status.empty')}
                 />
             );
         }
@@ -146,8 +145,10 @@ export function MediaGrid({
             <div className="media-grid__grid">
                 {data.map((item) => (
                     <MediaCard
-                        key={item.id}
+                        key={`${item.platform ?? ''}\0${item.id}`}
                         item={item}
+                        subtitle={getSubtitle?.(item) ?? item.artist}
+                        playLabel={t('playback.play_item', { title: item.title })}
                         onItemClick={onItemClick}
                         onItemContextMenu={onItemContextMenu}
                         onPlayClick={onPlayClick}
@@ -156,7 +157,6 @@ export function MediaGrid({
                 ))}
             </div>
 
-            {/* 加载更多哨兵 */}
             {enableLoadMore && <div ref={sentinelRef} className="media-grid__sentinel" />}
             {enableLoadMore && (
                 <ListFooter
@@ -172,19 +172,25 @@ export function MediaGrid({
 // MediaCard — 单张卡片
 // ────────────────────────────────────────────────────────────────────────────
 
-const MediaCard = React.memo(function MediaCard({
+interface MediaCardProps<T extends IMediaGridItem> {
+    item: T;
+    subtitle?: string;
+    playLabel: string;
+    onItemClick?: (item: T) => void;
+    onItemContextMenu?: (item: T, e: ReactMouseEvent) => void;
+    onPlayClick?: (item: T) => void;
+    placeholderIcon?: ReactNode;
+}
+
+function MediaCardInner<T extends IMediaGridItem>({
     item,
+    subtitle,
+    playLabel,
     onItemClick,
     onItemContextMenu,
     onPlayClick,
     placeholderIcon,
-}: {
-    item: IMusic.IMusicSheetItem;
-    onItemClick?: (item: IMusic.IMusicSheetItem) => void;
-    onItemContextMenu?: (item: IMusic.IMusicSheetItem, e: ReactMouseEvent) => void;
-    onPlayClick?: (item: IMusic.IMusicSheetItem) => void;
-    placeholderIcon?: ReactNode;
-}) {
+}: MediaCardProps<T>) {
     const handleClick = useCallback(() => {
         onItemClick?.(item);
     }, [item, onItemClick]);
@@ -206,7 +212,6 @@ const MediaCard = React.memo(function MediaCard({
 
     return (
         <div className="media-card" onClick={handleClick} onContextMenu={handleContextMenu}>
-            {/* 封面 */}
             <div className="media-card__cover-wrapper">
                 <Artwork
                     src={item.artwork}
@@ -217,32 +222,32 @@ const MediaCard = React.memo(function MediaCard({
                     className="media-card__cover"
                 />
 
-                {/* 播放 FAB */}
                 {onPlayClick && (
                     <button
                         type="button"
                         className="media-card__play-fab"
                         onClick={handlePlayClick}
-                        aria-label={`播放 ${item.title}`}
+                        aria-label={playLabel}
                     >
                         <Play size={18} fill="currentColor" />
                     </button>
                 )}
             </div>
 
-            {/* 文字 */}
             <div className="media-card__info">
                 <div className="media-card__title" title={item.title}>
                     {item.title}
                 </div>
-                {item.artist && (
-                    <div className="media-card__subtitle" title={item.artist}>
-                        {item.artist}
+                {subtitle && (
+                    <div className="media-card__subtitle" title={subtitle}>
+                        {subtitle}
                     </div>
                 )}
             </div>
         </div>
     );
-});
+}
+
+const MediaCard = React.memo(MediaCardInner) as typeof MediaCardInner;
 
 export default MediaGrid;

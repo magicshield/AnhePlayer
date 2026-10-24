@@ -18,6 +18,7 @@ import {
     Settings,
     FlaskConical,
     PictureInPicture2,
+    Podcast,
     Import as ImportIcon,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -113,6 +114,13 @@ export default function Sidebar() {
                         route={RoutePaths.NeteaseRecommend}
                         icon={Radio}
                         text={t('netease.nav_title')}
+                        activeSegment={activeSegment}
+                        navigate={navigate}
+                    />
+                    <NavItem
+                        route={RoutePaths.Radio}
+                        icon={Podcast}
+                        text={t('radio.title')}
                         activeSegment={activeSegment}
                         navigate={navigate}
                     />

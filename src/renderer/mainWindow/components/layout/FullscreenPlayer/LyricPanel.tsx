@@ -7,7 +7,8 @@
 
 import { useRef, useEffect, useCallback, memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLyric } from '@renderer/mainWindow/core/trackPlayer/hooks';
+import { useLyric, useCurrentMusic } from '@renderer/mainWindow/core/trackPlayer/hooks';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import type { IParsedLrcItem } from '@common/lyricParser';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 
@@ -34,6 +35,7 @@ const prefersReducedMotion =
 
 const LyricPanel = memo(function LyricPanel({ fontScale, showTranslation }: LyricPanelProps) {
     const { t } = useTranslation();
+    const currentMusic = useCurrentMusic();
     const lyricState = useLyric();
     const containerRef = useRef<HTMLDivElement>(null);
     const activeIndexRef = useRef<number>(-1);
@@ -174,6 +176,19 @@ const LyricPanel = memo(function LyricPanel({ fontScale, showTranslation }: Lyri
             }
         };
     }, []);
+
+    if (isRadioBrowserMedia(currentMusic)) {
+        return (
+            <div className="l-fullscreen-player__lyric-empty">
+                <span
+                    className="l-fullscreen-player__lyric-empty-text"
+                    style={{ fontSize: `${INACTIVE_BASE_SIZE * fontScale}px` }}
+                >
+                    {t('radio.live_no_lyric')}
+                </span>
+            </div>
+        );
+    }
 
     if (lyricItems.length === 0) {
         return (

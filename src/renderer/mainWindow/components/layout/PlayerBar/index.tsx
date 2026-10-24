@@ -6,6 +6,7 @@ import { SkipBack, SkipForward, Play, Pause, ListMusic, Maximize2, Shuffle } fro
 import { useTranslation } from 'react-i18next';
 import { DesktopLyric } from '@renderer/common/icons';
 import { cn } from '@common/cn';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import { PlayerState } from '@common/constant';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import appConfig from '@infra/appConfig/renderer';
@@ -54,6 +55,7 @@ export default function PlayerBar() {
 
     const isPlaying = playerState === PlayerState.Playing;
     const hasMusic = currentMusic != null;
+    const isLive = isRadioBrowserMedia(currentMusic);
 
     // 优先展示实际播放来源：自动换源后可能与歌曲原始平台不同
     const displayPlatform = playbackSource?.platform ?? currentMusic?.platform;
@@ -116,7 +118,7 @@ export default function PlayerBar() {
                                                 }
                                             >
                                                 {sourceFallback && <Shuffle size={11} />}
-                                                {displayPlatform}
+                                                {isLive ? t('radio.live') : displayPlatform}
                                             </span>
                                         </>
                                     )}
@@ -124,7 +126,9 @@ export default function PlayerBar() {
                                 {/* 第二行: 喜欢、下载、分割线、时间 */}
                                 <div className="l-player-bar__actions">
                                     <FavoriteButton musicItem={currentMusic} size="sm" />
-                                    <DownloadButton musicItem={currentMusic} size="sm" />
+                                    {!isLive && (
+                                        <DownloadButton musicItem={currentMusic} size="sm" />
+                                    )}
                                     <div className="l-player-bar__divider" />
                                     <TimeDisplay />
                                 </div>
@@ -139,18 +143,23 @@ export default function PlayerBar() {
 
                 {/* ── 中间: 播放控制 ── */}
                 <div className="l-player-bar__center">
-                    <button
-                        className={cn('l-player-bar__ctrl-btn', enableDesktopLyric && 'is-active')}
-                        type="button"
-                        title={t('playback.desktop_lyric')}
-                        onClick={() => {
-                            appConfig.setConfig({
-                                'lyric.enableDesktopLyric': !enableDesktopLyric,
-                            });
-                        }}
-                    >
-                        <DesktopLyric size={15} />
-                    </button>
+                    {!isLive && (
+                        <button
+                            className={cn(
+                                'l-player-bar__ctrl-btn',
+                                enableDesktopLyric && 'is-active',
+                            )}
+                            type="button"
+                            title={t('playback.desktop_lyric')}
+                            onClick={() => {
+                                appConfig.setConfig({
+                                    'lyric.enableDesktopLyric': !enableDesktopLyric,
+                                });
+                            }}
+                        >
+                            <DesktopLyric size={15} />
+                        </button>
+                    )}
                     <button
                         className="l-player-bar__ctrl-btn l-player-bar__ctrl-btn--lg"
                         type="button"
@@ -180,20 +189,26 @@ export default function PlayerBar() {
                     >
                         <SkipForward size={17} fill="currentColor" />
                     </button>
-                    <button
-                        className="l-player-bar__ctrl-btn"
-                        type="button"
-                        title={t(repeatTipKey)}
-                        onClick={() => trackPlayer.toggleRepeatMode()}
-                    >
-                        <RepeatIcon size={15} />
-                    </button>
+                    {!isLive && (
+                        <button
+                            className="l-player-bar__ctrl-btn"
+                            type="button"
+                            title={t(repeatTipKey)}
+                            onClick={() => trackPlayer.toggleRepeatMode()}
+                        >
+                            <RepeatIcon size={15} />
+                        </button>
+                    )}
                 </div>
 
                 {/* ── 右侧: 工具 ── */}
                 <div className="l-player-bar__right">
-                    <QualityPopover />
-                    <SpeedPopover />
+                    {!isLive && (
+                        <>
+                            <QualityPopover />
+                            <SpeedPopover />
+                        </>
+                    )}
                     <VolumePopover />
 
                     <div className="l-player-bar__divider l-player-bar__divider--tall" />

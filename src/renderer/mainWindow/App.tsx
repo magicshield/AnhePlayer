@@ -13,7 +13,9 @@
 //   └────────────┴──────────────────────────────────┘
 //   PlayerBar 从 sidebar 右侧开始，不覆盖 sidebar
 
-import { Outlet } from 'react-router';
+import { Outlet, useLocation } from 'react-router';
+import { cn } from '@common/cn';
+import { RoutePaths } from './routes';
 import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
 import PlayerBar from './components/layout/PlayerBar';
@@ -30,12 +32,20 @@ import './components/business/contextMenus';
 import './App.scss';
 
 export default function App() {
+    const location = useLocation();
+    const isRadioPage = location.pathname.split('/')[1] === RoutePaths.Radio;
+
     return (
         <div className="l-app-shell">
             <Sidebar />
             <main className="l-app-shell__main">
                 <TopBar />
-                <div className="l-app-shell__content">
+                <div
+                    className={cn(
+                        'l-app-shell__content',
+                        isRadioPage && 'l-app-shell__content--immersive',
+                    )}
+                >
                     <Outlet />
                 </div>
             </main>

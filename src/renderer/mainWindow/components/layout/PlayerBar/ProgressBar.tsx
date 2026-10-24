@@ -3,7 +3,9 @@
 // ============================================================================
 
 import { memo } from 'react';
-import { useProgress } from '@renderer/mainWindow/core/trackPlayer/hooks';
+import { useTranslation } from 'react-i18next';
+import { useCurrentMusic, useProgress } from '@renderer/mainWindow/core/trackPlayer/hooks';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import { ProgressBar as UIProgressBar } from '../../ui/ProgressBar';
 import { useProgressDrag } from '@renderer/mainWindow/hooks/useProgressDrag';
 import formatDuration from '@common/formatDuration';
@@ -15,16 +17,18 @@ import formatDuration from '@common/formatDuration';
  * 避免每秒多次触发整个 PlayerBar 重渲染。
  */
 const ProgressBar = memo(function ProgressBar() {
+    const currentMusic = useCurrentMusic();
     const progress = useProgress();
+    const isLive = isRadioBrowserMedia(currentMusic);
     const { displayValue, handleChange, handleDragStart, handleDragEnd } =
         useProgressDrag(progress);
 
     return (
         <UIProgressBar
             className="l-player-bar__progress"
-            value={displayValue}
+            value={isLive ? 0 : displayValue}
             variant="slim"
-            interactive
+            interactive={!isLive}
             onChange={handleChange}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
@@ -38,10 +42,14 @@ const ProgressBar = memo(function ProgressBar() {
  * 时间显示，同样隔离高频 progressAtom 更新。
  */
 const TimeDisplay = memo(function TimeDisplay() {
+    const { t } = useTranslation();
+    const currentMusic = useCurrentMusic();
     const progress = useProgress();
     return (
         <span className="l-player-bar__time">
-            {formatDuration(progress.currentTime)} / {formatDuration(progress.duration)}
+            {isRadioBrowserMedia(currentMusic)
+                ? t('radio.live')
+                : `${formatDuration(progress.currentTime)} / ${formatDuration(progress.duration)}`}
         </span>
     );
 });

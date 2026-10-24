@@ -11,6 +11,7 @@
 import { memo } from 'react';
 import { SkipBack, SkipForward, Play, Pause } from 'lucide-react';
 import { PlayerState } from '@common/constant';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import formatDuration from '@common/formatDuration';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import { useTranslation } from 'react-i18next';
@@ -28,22 +29,29 @@ import { useProgressDrag } from '@renderer/mainWindow/hooks/useProgressDrag';
 // ─── FullscreenProgressBar — 隔离高频 progressAtom 更新 ───
 
 const FullscreenProgressBar = memo(function FullscreenProgressBar() {
+    const { t } = useTranslation();
+    const currentMusic = useCurrentMusic();
     const progress = useProgress();
+    const isLive = isRadioBrowserMedia(currentMusic);
     const { displayValue, displayTime, handleChange, handleDragStart, handleDragEnd } =
         useProgressDrag(progress);
 
     return (
         <div className="l-fullscreen-player__progress">
-            <span className="l-fullscreen-player__time">{formatDuration(displayTime)}</span>
+            <span className="l-fullscreen-player__time">
+                {isLive ? t('radio.live') : formatDuration(displayTime)}
+            </span>
             <ProgressBar
-                value={displayValue}
+                value={isLive ? 0 : displayValue}
                 variant="slim"
-                interactive
+                interactive={!isLive}
                 onChange={handleChange}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
             />
-            <span className="l-fullscreen-player__time">{formatDuration(progress.duration)}</span>
+            <span className="l-fullscreen-player__time">
+                {isLive ? '' : formatDuration(progress.duration)}
+            </span>
         </div>
     );
 });
@@ -64,6 +72,7 @@ const PlaybackControls = memo(function PlaybackControls() {
 
     const isPlaying = playerState === PlayerState.Playing;
     const hasMusic = currentMusic != null;
+    const isLive = isRadioBrowserMedia(currentMusic);
 
     const { Icon: RepeatIcon, tipKey: repeatTipKey } = REPEAT_MODE_MAP[repeatMode];
 
@@ -104,15 +113,17 @@ const PlaybackControls = memo(function PlaybackControls() {
                 >
                     <SkipForward size={22} fill="currentColor" />
                 </button>
-                <button
-                    className="l-fullscreen-player__ctrl-btn"
-                    type="button"
-                    title={t(repeatTipKey)}
-                    aria-label={t(repeatTipKey)}
-                    onClick={() => trackPlayer.toggleRepeatMode()}
-                >
-                    <RepeatIcon size={18} />
-                </button>
+                {!isLive && (
+                    <button
+                        className="l-fullscreen-player__ctrl-btn"
+                        type="button"
+                        title={t(repeatTipKey)}
+                        aria-label={t(repeatTipKey)}
+                        onClick={() => trackPlayer.toggleRepeatMode()}
+                    >
+                        <RepeatIcon size={18} />
+                    </button>
+                )}
             </div>
 
             {/* 进度条行 */}

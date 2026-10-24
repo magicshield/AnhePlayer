@@ -8,6 +8,7 @@ import { SkipBack, SkipForward, Play, Pause, Heart, Maximize2 } from 'lucide-rea
 import { DesktopLyric } from '@renderer/common/icons';
 import { REPEAT_MODE_MAP } from '@renderer/common/repeatModeMap';
 import { PlayerState, RepeatMode } from '@common/constant';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import appSyncAuxiliary, { useAppStatePartial } from '@infra/appSync/renderer/auxiliary';
 import appConfig from '@infra/appConfig/renderer';
 import systemUtil from '@infra/systemUtil/renderer';
@@ -42,6 +43,7 @@ export default function App() {
     const [enableDesktopLyric] = useConfigValue('lyric.enableDesktopLyric');
 
     const isPlaying = playerState === PlayerState.Playing;
+    const isLive = isRadioBrowserMedia(musicItem);
     const currentRepeatMode = repeatMode ?? RepeatMode.Queue;
     const { Icon: RepeatIcon, next: nextRepeatMode } = REPEAT_MODE_MAP[currentRepeatMode];
 
@@ -127,14 +129,18 @@ export default function App() {
                     {musicItem?.title || (!musicItem ? t('playback.not_playing') : '')}
                 </div>
                 <div className="l-minimode__subtitle">
-                    {[musicItem?.artist, musicItem?.album].filter(Boolean).join(' · ')}
+                    {[musicItem?.artist, musicItem?.album, isLive ? t('radio.live') : null]
+                        .filter(Boolean)
+                        .join(' · ')}
                 </div>
-                <div className="l-minimode__progress">
-                    <div
-                        className="l-minimode__progress-fill"
-                        style={{ width: `${progressPercent}%` }}
-                    />
-                </div>
+                {!isLive && (
+                    <div className="l-minimode__progress">
+                        <div
+                            className="l-minimode__progress-fill"
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* ── 控制区域 ── */}
@@ -169,20 +175,24 @@ export default function App() {
                     >
                         <Heart size={14} fill={isFavorite ? 'currentColor' : 'none'} />
                     </button>
-                    <button
-                        type="button"
-                        className={`l-minimode__util-btn${enableDesktopLyric ? ' is-active' : ''}`}
-                        onClick={handleToggleDesktopLyric}
-                    >
-                        <DesktopLyric size={14} />
-                    </button>
-                    <button
-                        type="button"
-                        className="l-minimode__util-btn"
-                        onClick={handleToggleRepeatMode}
-                    >
-                        <RepeatIcon size={14} />
-                    </button>
+                    {!isLive && (
+                        <>
+                            <button
+                                type="button"
+                                className={`l-minimode__util-btn${enableDesktopLyric ? ' is-active' : ''}`}
+                                onClick={handleToggleDesktopLyric}
+                            >
+                                <DesktopLyric size={14} />
+                            </button>
+                            <button
+                                type="button"
+                                className="l-minimode__util-btn"
+                                onClick={handleToggleRepeatMode}
+                            >
+                                <RepeatIcon size={14} />
+                            </button>
+                        </>
+                    )}
                     <button
                         type="button"
                         className="l-minimode__util-btn"

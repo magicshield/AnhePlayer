@@ -94,7 +94,7 @@
             opacity: 0.8;
         }
 
-        &:hover {
+        &.progress-bar--interactive:hover {
             .progress-bar__track {
                 height: 5px;
             }

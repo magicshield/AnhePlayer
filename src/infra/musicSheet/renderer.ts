@@ -23,11 +23,17 @@ import type {
 } from '@appTypes/infra/musicSheet';
 
 import { compositeKey } from '@common/mediaKey';
+import {
+    isRadioBrowserMedia,
+    isSafeRadioRemoteUrl,
+    type IRadioBrowserMusicItem,
+} from '@common/radioBrowser';
 import musicItemToSlim from '@common/musicItemToSlim';
 import MutationQueue from '@common/mutationQueue';
 import {
     CONTEXT_BRIDGE_KEY,
     DEFAULT_FAVORITE_SHEET_ID,
+    RADIO_FAVORITE_SHEET_ID,
     type IMusicSheetEvent,
 } from './common/constant';
 
@@ -90,6 +96,9 @@ const starredSheetsAtom = atom<IStarredSheetItem[]>([]);
 /** 当前歌曲列表 */
 const musicListAtom = atom<IMusicItemSlim[]>([]);
 
+/** 电台专属收藏（完整对象，供电台抽屉直接播放） */
+const radioFavoritesAtom = atom<IRadioBrowserMusicItem[]>([]);
+
 /** 正在加载歌单详情 */
 const isLoadingSheetAtom = atom(false);
 
@@ -100,6 +109,7 @@ const isLoadingSheetAtom = atom(false);
 interface IRendererEvents {
     error: (e: Error) => void;
     favoriteChange: () => void;
+    radioFavoriteChange: () => void;
     starredChange: () => void;
 }
 
@@ -108,6 +118,7 @@ class MusicSheetRenderer {
 
     public readonly events = new EventEmitter<IRendererEvents>();
     private favoriteIdSet = new Set<string>();
+    private radioFavoriteIdSet = new Set<string>();
     private starredIdSet = new Set<string>();
     private currentSheetId: string | null = null;
     private mutationQueue = new MutationQueue();
@@ -131,7 +142,7 @@ class MusicSheetRenderer {
 
         this.starredIdSet = new Set(starred.map((s) => compositeKey(s.platform, s.id)));
 
-        await this.refreshFavoriteCache();
+        await Promise.all([this.refreshFavoriteCache(), this.refreshRadioFavoriteCache()]);
 
         mod.onMusicSheetEvent(async (event) => {
             try {
@@ -162,7 +173,7 @@ class MusicSheetRenderer {
             const detail = await mod.getSheetDetail(this.currentSheetId);
             if (detail) store.set(musicListAtom, detail.musicList);
         }
-        await this.refreshFavoriteCache();
+        await Promise.all([this.refreshFavoriteCache(), this.refreshRadioFavoriteCache()]);
     }
 
     // ─── 歌单列表 ───
@@ -200,6 +211,10 @@ class MusicSheetRenderer {
         if (sheetId === DEFAULT_FAVORITE_SHEET_ID) {
             this.favoriteIdSet.clear();
             this.events.emit('favoriteChange');
+        } else if (sheetId === RADIO_FAVORITE_SHEET_ID) {
+            this.radioFavoriteIdSet.clear();
+            store.set(radioFavoritesAtom, []);
+            this.events.emit('radioFavoriteChange');
         }
         this.mutationQueue.enqueue(() => mod.clearSheet(sheetId));
     }
@@ -269,6 +284,70 @@ class MusicSheetRenderer {
     removeMusicFromFavorite(musicItems: IMedia.IMediaBase | IMedia.IMediaBase[]): void {
         this.removeMusicFromSheet(musicItems, DEFAULT_FAVORITE_SHEET_ID);
     }
+
+    // ─── 电台专属收藏 ───
+
+    getRadioFavorites(): IRadioBrowserMusicItem[] {
+        return store.get(radioFavoritesAtom);
+    }
+
+    isRadioFavorite(item: { platform: string; id: string }): boolean {
+        return this.radioFavoriteIdSet.has(compositeKey(item.platform, String(item.id)));
+    }
+
+    isRadioFavoriteByKey(key: string): boolean {
+        return this.radioFavoriteIdSet.has(key);
+    }
+
+    addRadioFavorite(item: IMusic.IMusicItem | IMusicItemSlim): void {
+        if (!isRadioBrowserMedia(item)) return;
+        const key = compositeKey(item.platform, String(item.id));
+        if (this.radioFavoriteIdSet.has(key)) return;
+
+        this.radioFavoriteIdSet.add(key);
+        if ('url' in item && typeof item.url === 'string' && isSafeRadioRemoteUrl(item.url)) {
+            store.set(radioFavoritesAtom, (current) => [
+                item as IRadioBrowserMusicItem,
+                ...current.filter((station) => compositeKey(station.platform, station.id) !== key),
+            ]);
+        }
+        this.events.emit('radioFavoriteChange');
+
+        this.mutationQueue.enqueue(async () => {
+            const fullItem =
+                '$slim' in item
+                    ? await mod.getRawMusicItem(item.platform, String(item.id))
+                    : (item as IMusic.IMusicItem);
+            if (!fullItem || !isRadioBrowserMedia(fullItem)) {
+                throw new Error('电台完整数据不存在，无法收藏');
+            }
+            await mod.addMusic(RADIO_FAVORITE_SHEET_ID, [fullItem]);
+            // 用户可能在持久化期间已取消收藏，不能用旧任务的结果把乐观状态加回来。
+            if (this.radioFavoriteIdSet.has(key)) {
+                await this.refreshRadioFavoriteCache();
+            }
+        });
+    }
+
+    removeRadioFavorite(item: IMedia.IMediaBase): void {
+        const key = compositeKey(item.platform, String(item.id));
+        if (!this.radioFavoriteIdSet.has(key)) return;
+        this.radioFavoriteIdSet.delete(key);
+        store.set(radioFavoritesAtom, (current) =>
+            current.filter((station) => compositeKey(station.platform, station.id) !== key),
+        );
+        this.events.emit('radioFavoriteChange');
+        this.mutationQueue.enqueue(() =>
+            mod.removeMusic(RADIO_FAVORITE_SHEET_ID, [
+                { platform: item.platform, id: String(item.id) },
+            ]),
+        );
+    }
+
+    subscribeRadioFavoriteChange = (cb: () => void): (() => void) => {
+        this.events.on('radioFavoriteChange', cb);
+        return () => this.events.off('radioFavoriteChange', cb);
+    };
 
     /**
      * 从所有歌单中移除歌曲（排除播放队列，由 trackPlayer 自行管理）。
@@ -424,6 +503,9 @@ class MusicSheetRenderer {
         if (!sheetId || sheetId === DEFAULT_FAVORITE_SHEET_ID) {
             await this.refreshFavoriteCache();
         }
+        if (!sheetId || sheetId === RADIO_FAVORITE_SHEET_ID) {
+            await this.refreshRadioFavoriteCache();
+        }
     }
 
     private async refreshFavoriteCache() {
@@ -446,6 +528,28 @@ class MusicSheetRenderer {
         if (changed) {
             this.events.emit('favoriteChange');
         }
+    }
+
+    private async refreshRadioFavoriteCache() {
+        const detail = await mod.getSheetDetail(RADIO_FAVORITE_SHEET_ID);
+        if (!detail) return;
+        const fullItems = await mod.getRawMusicItems(detail.musicList);
+        const stations = fullItems.filter(
+            (item): item is IRadioBrowserMusicItem =>
+                isRadioBrowserMedia(item) &&
+                typeof item.url === 'string' &&
+                isSafeRadioRemoteUrl(item.url) &&
+                !!item.radioBrowser,
+        );
+        const nextSet = new Set(
+            stations.map((station) => compositeKey(station.platform, String(station.id))),
+        );
+        const changed =
+            nextSet.size !== this.radioFavoriteIdSet.size ||
+            [...nextSet].some((key) => !this.radioFavoriteIdSet.has(key));
+        this.radioFavoriteIdSet = nextSet;
+        store.set(radioFavoritesAtom, stations);
+        if (changed) this.events.emit('radioFavoriteChange');
     }
 }
 
@@ -470,6 +574,21 @@ export function useMusicIsFavorite(musicItem: { platform: string; id: string }):
     const getSnapshot = useCallback(() => (key ? musicSheet.isFavoriteByKey(key) : false), [key]);
 
     return useSyncExternalStore(musicSheet.subscribeFavoriteChange, getSnapshot);
+}
+
+/** 电台专属收藏列表（完整对象） */
+export function useRadioFavorites(): IRadioBrowserMusicItem[] {
+    return useAtomValue(radioFavoritesAtom);
+}
+
+/** 某个电台是否已收藏 */
+export function useRadioIsFavorite(item: { platform: string; id: string }): boolean {
+    const key = item ? compositeKey(item.platform, String(item.id)) : null;
+    const getSnapshot = useCallback(
+        () => (key ? musicSheet.isRadioFavoriteByKey(key) : false),
+        [key],
+    );
+    return useSyncExternalStore(musicSheet.subscribeRadioFavoriteChange, getSnapshot);
 }
 
 /** 监听歌单列表变更 */

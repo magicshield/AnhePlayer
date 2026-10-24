@@ -10,6 +10,11 @@ import { isSameMedia } from '@common/mediaKey';
 import musicItemToSlim from '@common/musicItemToSlim';
 import delay from '@common/delay';
 import throttle from '@common/throttle';
+import {
+    isRadioBrowserMedia,
+    isSafeRadioRemoteUrl,
+    type IRadioBrowserMusicItem,
+} from '@common/radioBrowser';
 import musicSheet from '@infra/musicSheet/renderer';
 import pluginManager from '@infra/pluginManager/renderer';
 import appConfig from '@infra/appConfig/renderer';
@@ -25,7 +30,7 @@ import i18n from '@infra/i18n/renderer';
 import { type IAudioController, createAudioController } from './audioController';
 import PlayQueue from './playQueue';
 import LyricManager from './lyricManager';
-import type { IPlayOptions } from './types';
+import type { IPlayOptions, IResolvedMediaSource } from './types';
 import {
     store,
     currentMusicAtom,
@@ -50,7 +55,10 @@ function setupAppSyncBridge(): void {
     // 计算当前歌曲是否已收藏
     const getIsFavorite = () => {
         const music = store.get(currentMusicAtom);
-        return music ? musicSheet.isFavoriteMusic(music) : false;
+        if (!music) return false;
+        return isRadioBrowserMedia(music)
+            ? musicSheet.isRadioFavorite(music)
+            : musicSheet.isFavoriteMusic(music);
     };
 
     store.sub(currentMusicAtom, () => {
@@ -72,6 +80,9 @@ function setupAppSyncBridge(): void {
 
     // 收藏状态变化时同步
     musicSheet.subscribeFavoriteChange(() => {
+        appSync.syncAppState({ isFavorite: getIsFavorite() });
+    });
+    musicSheet.subscribeRadioFavoriteChange(() => {
         appSync.syncAppState({ isFavorite: getIsFavorite() });
     });
 
@@ -165,24 +176,30 @@ class TrackPlayer {
             const fullItem = await musicSheet.getRawMusicItem(savedMusic.platform, savedMusic.id);
             const musicItem = fullItem ?? savedMusic;
 
+            const isLive = isRadioBrowserMedia(musicItem);
+
             try {
-                // 优先使用已下载的本地文件
-                const localSource = await this.tryLocalSource(musicItem);
+                // 电台使用受控直连源，普通歌曲优先使用已下载的本地文件。
+                const localSource = isLive ? null : await this.tryLocalSource(musicItem);
                 const result =
                     localSource ?? (await this.resolveMediaSource(musicItem, validQuality));
 
                 if (result?.url && this.isCurrentMusic(savedMusic)) {
+                    this.audioController.setSpeed(isLive ? 1 : speed);
                     this.audioController.setTrackSource(result, musicItem);
                     this.markPlaybackSource(musicItem.platform);
-                    this.audioController.seekTo(savedProgress);
-                    store.set(qualityAtom, result.quality!);
+                    if (!isLive) this.audioController.seekTo(savedProgress);
+                    if (result.quality) store.set(qualityAtom, result.quality);
                 }
             } catch {
                 // 恢复失败不阻塞启动
             }
 
-            // 加载歌词
-            this.lyricManager.fetchLyric(musicItem);
+            if (isLive) {
+                this.lyricManager.reset();
+            } else {
+                this.lyricManager.fetchLyric(musicItem);
+            }
         }
 
         // 5. 绑定事件
@@ -255,7 +272,9 @@ class TrackPlayer {
         // 相同歌曲处理
         if (this.playQueue.getCurrentIndex() === index && this.isCurrentMusic(targetSlim)) {
             if (this.audioController.hasSource) {
-                if (options.restartOnSameMedia) this.audioController.seekTo(0);
+                if (options.restartOnSameMedia && !isRadioBrowserMedia(targetSlim)) {
+                    this.audioController.seekTo(0);
+                }
                 this.audioController.play();
                 return;
             }
@@ -275,48 +294,57 @@ class TrackPlayer {
                 this.playQueue.getRawItem(targetSlim);
             const musicItem: IMusic.IMusicItem = fullItem ?? (targetSlim as IMusic.IMusicItem);
 
-            // 获取音源：优先使用已下载的本地文件
+            const isLive = isRadioBrowserMedia(musicItem);
+
+            // 电台使用受控直连源，普通歌曲优先使用已下载的本地文件。
             const quality = store.get(qualityAtom);
-            const localSource = await this.tryLocalSource(musicItem);
+            const localSource = isLive ? null : await this.tryLocalSource(musicItem);
             const result = localSource ?? (await this.resolveMediaSource(musicItem, quality));
 
             if (!result?.url) throw new Error('No media source');
             if (!this.isCurrentMusic(targetSlim)) return; // 切歌了
 
-            // 播放
-            store.set(qualityAtom, result.quality ?? quality);
+            // 直播固定 1× 播放，但不覆盖用户保存的歌曲倍速。
+            this.audioController.setSpeed(isLive ? 1 : store.get(speedAtom));
+            if (!isLive && result.quality) {
+                store.set(qualityAtom, result.quality);
+                syncKV.set('player.currentQuality', result.quality);
+            }
             this.audioController.setTrackSource(result, musicItem);
             this.markPlaybackSource(musicItem.platform);
             this.audioController.play();
-            this.consecutiveErrors = 0; // 播放成功，重置错误计数
+            this.consecutiveErrors = 0;
             this.resetSourceRetryState();
 
             this.setCurrentMusic(musicItem);
-            syncKV.set('player.currentQuality', result.quality!);
 
-            // 记录到最近播放（异步，不阻塞播放）
-            addToRecentlyPlayed(musicItem).catch(() => {});
+            if (!isLive) {
+                // 记录到最近播放（异步，不阻塞播放）
+                addToRecentlyPlayed(musicItem).catch(() => {});
 
-            // 异步丰富元数据（锦上添花，失败不影响播放）
-            pluginManager
-                .callPluginMethod({
-                    platform: musicItem.platform,
-                    method: 'getMusicInfo',
-                    args: [musicItem],
-                })
-                .then((info) => {
-                    if (info && typeof info === 'object' && this.isCurrentMusic(targetSlim)) {
-                        const enriched = {
-                            ...musicItem,
-                            ...info,
-                            platform: musicItem.platform,
-                            id: musicItem.id,
-                        };
-                        this.setCurrentMusic(enriched, false);
-                    }
-                })
-                .catch(() => {});
+                // 异步丰富元数据（锦上添花，失败不影响播放）
+                pluginManager
+                    .callPluginMethod({
+                        platform: musicItem.platform,
+                        method: 'getMusicInfo',
+                        args: [musicItem],
+                    })
+                    .then((info) => {
+                        if (info && typeof info === 'object' && this.isCurrentMusic(targetSlim)) {
+                            const enriched = {
+                                ...musicItem,
+                                ...info,
+                                platform: musicItem.platform,
+                                id: musicItem.id,
+                            };
+                            this.setCurrentMusic(enriched, false);
+                        }
+                    })
+                    .catch(() => {});
+            }
         } catch (e) {
+            // 旧曲目的异步请求晚于新曲目失败时，不得重置后来已经开始的播放。
+            if (!this.isCurrentMusic(targetSlim)) return;
             this.audioController.reset();
             await this.handlePlayError(targetSlim, e);
         }
@@ -331,6 +359,15 @@ class TrackPlayer {
             this.playQueue.append([item]);
             await this.playIndex(this.playQueue.queue.length - 1);
         }
+    }
+
+    /** 使用可复用的电台调谐槽播放直播，不让探索行为持续扩充队列。 */
+    async tuneRadio(station: IRadioBrowserMusicItem): Promise<void> {
+        if (!isRadioBrowserMedia(station) || !isSafeRadioRemoteUrl(station.url)) {
+            throw new Error('Invalid radio station');
+        }
+        const index = this.playQueue.tuneRadioSlot(station);
+        await this.playIndex(index, { restartOnSameMedia: false });
     }
 
     /**
@@ -422,6 +459,7 @@ class TrackPlayer {
     }
 
     seekTo(seconds: number): void {
+        if (isRadioBrowserMedia(store.get(currentMusicAtom))) return;
         this.audioController.seekTo(seconds);
     }
 
@@ -445,11 +483,13 @@ class TrackPlayer {
     }
 
     setSpeed(speed: number): void {
+        if (isRadioBrowserMedia(store.get(currentMusicAtom))) return;
         this.audioController.setSpeed(speed);
     }
 
     async setQuality(quality: IMusic.IQualityKey): Promise<boolean> {
         const current = this.playQueue.getCurrentMusic();
+        if (isRadioBrowserMedia(current)) return false;
         const prevQuality = store.get(qualityAtom);
         if (!current || quality === prevQuality) return true;
 
@@ -521,7 +561,7 @@ class TrackPlayer {
     /** 强制重新加载当前歌曲歌词（关联/取消关联歌词后调用） */
     async refreshLyric(): Promise<void> {
         const musicItem = store.get(currentMusicAtom);
-        if (!musicItem) return;
+        if (!musicItem || isRadioBrowserMedia(musicItem)) return;
         await this.lyricManager.refreshLyric(musicItem as IMusic.IMusicItem);
     }
 
@@ -553,6 +593,10 @@ class TrackPlayer {
 
         this.audioController.on('ended', async () => {
             this.resetProgress();
+            if (isRadioBrowserMedia(store.get(currentMusicAtom))) {
+                store.set(playerStateAtom, PlayerState.Paused);
+                return;
+            }
             const repeatMode = store.get(repeatModeAtom);
             if (repeatMode === RepeatMode.Loop) {
                 // 自然播完 + 单曲循环 → 重播
@@ -577,6 +621,7 @@ class TrackPlayer {
         });
 
         this.audioController.on('speedChange', (speed) => {
+            if (isRadioBrowserMedia(store.get(currentMusicAtom))) return;
             store.set(speedAtom, speed);
             syncKV.set('player.speed', speed);
         });
@@ -596,7 +641,10 @@ class TrackPlayer {
         appSync.onCommand('like/dislike', () => {
             const music = store.get(currentMusicAtom);
             if (!music) return;
-            if (musicSheet.isFavoriteMusic(music)) {
+            if (isRadioBrowserMedia(music)) {
+                if (musicSheet.isRadioFavorite(music)) musicSheet.removeRadioFavorite(music);
+                else musicSheet.addRadioFavorite(music);
+            } else if (musicSheet.isFavoriteMusic(music)) {
                 musicSheet.removeMusicFromFavorite(music);
             } else {
                 musicSheet.addMusicToFavorite(music);
@@ -615,6 +663,16 @@ class TrackPlayer {
 
     private async handlePlayError(musicItem: IMusicItemSlim | null, _error?: any): Promise<void> {
         this.resetProgress();
+
+        if (isRadioBrowserMedia(musicItem)) {
+            this.audioController.reset();
+            store.set(playerStateAtom, PlayerState.Paused);
+            this.consecutiveErrors = 0;
+            this.resetSourceRetryState();
+            showToast(i18n.t('radio.play_failed'), { type: 'warn' });
+            return;
+        }
+
         this.consecutiveErrors++;
 
         // 播放出错时重置音质为默认，避免因高音质源不可用导致连续失败
@@ -884,7 +942,9 @@ class TrackPlayer {
     private setCurrentMusic(musicItem: IMusic.IMusicItem, fetchLyric = true): void {
         store.set(currentMusicAtom, musicItemToSlim(musicItem));
         syncKV.set('player.currentMusic', musicItem);
-        if (fetchLyric) {
+        if (isRadioBrowserMedia(musicItem)) {
+            this.lyricManager.reset();
+        } else if (fetchLyric) {
             this.lyricManager.fetchLyric(musicItem);
         }
     }
@@ -947,7 +1007,19 @@ class TrackPlayer {
     private async resolveMediaSource(
         musicItem: IMusic.IMusicItem,
         quality: IMusic.IQualityKey,
-    ): Promise<IPlugin.IMediaSourceResult | null> {
+    ): Promise<IResolvedMediaSource | null> {
+        if (isRadioBrowserMedia(musicItem)) {
+            const station = musicItem as IRadioBrowserMusicItem;
+            if (!isSafeRadioRemoteUrl(station.url)) {
+                throw new Error('Unsafe radio stream URL');
+            }
+            return {
+                url: station.url,
+                isHls: station.radioBrowser?.isHls === true,
+                publicOnly: true,
+            };
+        }
+
         if (musicItem.platform === 'wy') {
             try {
                 const neteaseSource = await neteaseAccount.getMusicUrl(

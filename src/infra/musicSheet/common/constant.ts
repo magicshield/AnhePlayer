@@ -16,6 +16,9 @@ export const PLAY_QUEUE_SHEET_ID = '__play_queue__';
 /** 已下载歌单 ID（系统歌单，不可删除） */
 export const DOWNLOADED_SHEET_ID = '__downloaded__';
 
+/** 电台收藏系统歌单 ID（隐藏，不与歌曲「我喜欢」混用） */
+export const RADIO_FAVORITE_SHEET_ID = '__radio_favorite__';
+
 /**
  * musicSheet 模块广播事件的 payload。
  *

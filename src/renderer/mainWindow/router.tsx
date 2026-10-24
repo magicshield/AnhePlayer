@@ -54,6 +54,11 @@ const router = createHashRouter([
                 path: RoutePaths.NeteaseRecommend,
                 Component: NeteaseRecommendPage,
             },
+            {
+                path: RoutePaths.Radio,
+                lazy: () =>
+                    import('./pages/RadioPage').then((module) => ({ Component: module.default })),
+            },
 
             // ── 详情页 ──
             {

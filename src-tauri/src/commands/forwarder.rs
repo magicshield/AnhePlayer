@@ -7,6 +7,7 @@
 // 安全：仅监听 127.0.0.1，不暴露公网。
 
 use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::Duration;
 
@@ -57,6 +58,73 @@ pub fn init_forwarder(app: AppHandle) {
     });
 }
 
+fn is_public_ipv4(ip: Ipv4Addr) -> bool {
+    let [a, b, c, _] = ip.octets();
+    !(a == 0
+        || a == 10
+        || a == 127
+        || (a == 100 && (64..=127).contains(&b))
+        || (a == 169 && b == 254)
+        || (a == 172 && (16..=31).contains(&b))
+        || (a == 192 && b == 0 && (c == 0 || c == 2))
+        || (a == 192 && b == 168)
+        || (a == 198 && (b == 18 || b == 19))
+        || (a == 198 && b == 51 && c == 100)
+        || (a == 203 && b == 0 && c == 113)
+        || a >= 224)
+}
+
+fn is_public_ipv6(ip: Ipv6Addr) -> bool {
+    let segments = ip.segments();
+    !(ip.is_loopback()
+        || ip.is_unspecified()
+        || ip.is_multicast()
+        || (segments[0] & 0xfe00) == 0xfc00
+        || (segments[0] & 0xffc0) == 0xfe80
+        || (segments[0] & 0xffc0) == 0xfec0
+        || ip
+            .to_ipv4_mapped()
+            .is_some_and(|mapped| !is_public_ipv4(mapped)))
+}
+
+fn is_public_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => is_public_ipv4(ip),
+        IpAddr::V6(ip) => is_public_ipv6(ip),
+    }
+}
+
+fn resolve_public_target(url: &reqwest::Url) -> Option<(String, Option<SocketAddr>)> {
+    if !matches!(url.scheme(), "http" | "https")
+        || !url.username().is_empty()
+        || url.password().is_some()
+    {
+        return None;
+    }
+    let host = url.host_str()?;
+    let normalized = host.trim_end_matches('.').to_ascii_lowercase();
+    if normalized == "localhost"
+        || normalized.ends_with(".localhost")
+        || normalized.ends_with(".local")
+        || normalized.ends_with(".localdomain")
+    {
+        return None;
+    }
+    let port = url.port_or_known_default().unwrap_or(80);
+    if let Ok(ip) = normalized.parse::<IpAddr>() {
+        return is_public_ip(ip).then_some((normalized, None));
+    }
+
+    let addresses: Vec<SocketAddr> = (normalized.as_str(), port)
+        .to_socket_addrs()
+        .ok()?
+        .collect();
+    if addresses.is_empty() || addresses.iter().any(|address| !is_public_ip(address.ip())) {
+        return None;
+    }
+    Some((normalized, addresses.into_iter().next()))
+}
+
 fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     let raw_url = request.url().to_string();
     let query = raw_url.split_once('?').map(|(_, q)| q).unwrap_or("");
@@ -66,18 +134,45 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
         respond_plain(request, 400, "missing url parameter");
         return;
     };
+    let public_only = params.get("publicOnly").is_some_and(|value| value == "1");
+    let parsed_target = match reqwest::Url::parse(&target_url) {
+        Ok(url) if matches!(url.scheme(), "http" | "https") => url,
+        _ => {
+            respond_plain(request, 400, "target url must use HTTP(S)");
+            return;
+        }
+    };
+    let public_resolution = if public_only {
+        match resolve_public_target(&parsed_target) {
+            Some(resolution) => Some(resolution),
+            None => {
+                respond_plain(request, 403, "target url is not a public HTTP(S) address");
+                return;
+            }
+        }
+    } else {
+        None
+    };
 
     let extra_headers: HashMap<String, String> = params
         .get("headers")
         .and_then(|h| serde_json::from_str(h).ok())
         .unwrap_or_default();
 
-    let client = match reqwest::blocking::Client::builder()
+    let mut client_builder = reqwest::blocking::Client::builder()
         .danger_accept_invalid_certs(true)
-        .connect_timeout(Duration::from_secs(15))
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .build()
-    {
+        .connect_timeout(Duration::from_secs(15));
+    if let Some((host, resolved_address)) = &public_resolution {
+        client_builder = client_builder.redirect(reqwest::redirect::Policy::none());
+        if let Some(address) = resolved_address {
+            // 将校验过的 DNS 结果固定到实际连接，阻止校验后 DNS rebinding。
+            client_builder = client_builder.resolve(host, *address);
+        }
+    } else {
+        // 插件音源保留原有局域网与有限重定向能力。
+        client_builder = client_builder.redirect(reqwest::redirect::Policy::limited(10));
+    }
+    let client = match client_builder.build() {
         Ok(client) => client,
         Err(err) => {
             respond_plain(request, 500, &format!("client build failed: {err}"));
@@ -85,7 +180,7 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
         }
     };
 
-    let mut upstream = client.get(&target_url);
+    let mut upstream = client.get(parsed_target);
     for (key, value) in &extra_headers {
         if is_forbidden_header(key) {
             continue;
@@ -98,11 +193,7 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
         }
     }
     // 透传客户端 Range（音频 seek）
-    if let Some(range) = request
-        .headers()
-        .iter()
-        .find(|h| h.field.equiv("Range"))
-    {
+    if let Some(range) = request.headers().iter().find(|h| h.field.equiv("Range")) {
         upstream = upstream.header("Range", range.value.as_str());
     }
 
@@ -129,10 +220,8 @@ fn handle_request(request: tiny_http::Request, _app: AppHandle) {
     ];
     let mut out_headers = Vec::new();
     // 允许页面侧 fetch/XHR（如 hls.js）跨源读取代理响应
-    if let Ok(acao) = tiny_http::Header::from_bytes(
-        &b"Access-Control-Allow-Origin"[..],
-        &b"*"[..],
-    ) {
+    if let Ok(acao) = tiny_http::Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..])
+    {
         out_headers.push(acao);
     }
     for (name, value) in response.headers() {
@@ -162,10 +251,8 @@ fn respond_plain(request: tiny_http::Request, status: u16, message: &str) {
     let mut response =
         tiny_http::Response::from_string(message).with_status_code(tiny_http::StatusCode(status));
     // 错误响应同样允许跨源读取，便于页面侧 fetch 拿到状态码
-    if let Ok(acao) = tiny_http::Header::from_bytes(
-        &b"Access-Control-Allow-Origin"[..],
-        &b"*"[..],
-    ) {
+    if let Ok(acao) = tiny_http::Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..])
+    {
         response = response.with_header(acao);
     }
     let _ = request.respond(response);

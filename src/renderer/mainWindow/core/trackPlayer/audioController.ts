@@ -10,6 +10,7 @@ import Hls from 'hls.js';
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import { PlayerState, ErrorReason } from '@common/constant';
 import requestForwarder from '@infra/requestForwarder/renderer';
+import type { IResolvedMediaSource } from './types';
 
 // ─── 事件类型 ───
 
@@ -35,7 +36,7 @@ export interface IAudioController extends EventEmitter<IAudioControllerEvents> {
     /** 预准备（设置 MediaSession metadata，清空旧音源） */
     prepareTrack(musicItem: IMusicItemSlim): void;
     /** 设置音源并可选自动播放 */
-    setTrackSource(source: IPlugin.IMediaSourceResult, musicItem: IMusic.IMusicItem): void;
+    setTrackSource(source: IResolvedMediaSource, musicItem: IMusic.IMusicItem): void;
     play(): void;
     pause(): void;
     seekTo(seconds: number): void;
@@ -58,6 +59,7 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
     private _playerState: PlayerState = PlayerState.None;
     private _sourceId = 0; // fetch 竞态守卫
     private _currentBlobUrl: string | null = null; // 追踪 blob URL 防止内存泄漏
+    private pendingHlsPlay = false;
 
     get playerState(): PlayerState {
         return this._playerState;
@@ -83,14 +85,19 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
             artwork: musicItem.artwork ? [{ src: musicItem.artwork }] : undefined,
         });
         this.setPlayerState(PlayerState.None);
+        this.pendingHlsPlay = false;
+        this.destroyHls();
+        this.revokeBlobUrl();
+        this._sourceId++;
         this.audio.src = '';
         this.audio.removeAttribute('src');
         navigator.mediaSession.playbackState = 'none';
     }
 
-    setTrackSource(source: IPlugin.IMediaSourceResult, _musicItem: IMusic.IMusicItem): void {
+    setTrackSource(source: IResolvedMediaSource, _musicItem: IMusic.IMusicItem): void {
         this.destroyHls();
         this.revokeBlobUrl();
+        this.pendingHlsPlay = false;
         const sourceId = ++this._sourceId;
 
         // 从 URL 的 userinfo 部分提取 Basic Auth（如 http://user:pass@host/...）
@@ -102,11 +109,14 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
         }
 
         // HLS 支持
-        if (this.isHls(source.url!)) {
+        if (this.isHls(source)) {
             if (Hls.isSupported()) {
-                this.initHls();
+                this.initHls(() => {
+                    if (this._sourceId !== sourceId || !this.pendingHlsPlay) return;
+                    this.audio.play().catch(() => {});
+                });
                 if (headers) {
-                    // HLS 自定义 header 通过 xhrSetup
+                    // HLS 请求由 hls.js 直连；相对分片必须保持原始清单 URL 作为解析基址。
                     this.hls!.config.xhrSetup = (xhr: XMLHttpRequest) => {
                         for (const [key, value] of Object.entries(headers)) {
                             xhr.setRequestHeader(key, value);
@@ -122,7 +132,11 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
 
         // 远程非 HLS：通过代理服务器播放，代理负责附加 headers 和跟随重定向。
         if (requestForwarder.isProxyRequired(url)) {
-            const proxyUrl = requestForwarder.buildProxyUrl(url, headers ?? undefined);
+            const proxyUrl = requestForwarder.buildProxyUrl(
+                url,
+                headers ?? undefined,
+                source.publicOnly === true,
+            );
             if (proxyUrl !== url) {
                 this.audio.src = proxyUrl;
                 return;
@@ -153,12 +167,16 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
     }
 
     play(): void {
+        if (this.hls) {
+            this.pendingHlsPlay = true;
+        }
         if (this.hasSource) {
             this.audio.play().catch(() => {});
         }
     }
 
     pause(): void {
+        this.pendingHlsPlay = false;
         if (this.hasSource) {
             this.audio.pause();
         }
@@ -185,6 +203,8 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
 
     reset(): void {
         this.setPlayerState(PlayerState.None);
+        this.pendingHlsPlay = false;
+        this.destroyHls();
         this.revokeBlobUrl();
         this.audio.src = '';
         this.audio.removeAttribute('src');
@@ -202,6 +222,7 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
 
     private bindEvents(): void {
         this.audio.onplaying = () => {
+            this.pendingHlsPlay = false;
             this.setPlayerState(PlayerState.Playing);
             navigator.mediaSession.playbackState = 'playing';
         };
@@ -246,10 +267,14 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
 
     // ─── HLS ───
 
-    private initHls(): void {
+    private initHls(onReady?: () => void): void {
         this.destroyHls();
         this.hls = new Hls();
         this.hls.attachMedia(this.audio);
+
+        if (onReady) {
+            this.hls.once(Hls.Events.MANIFEST_PARSED, onReady);
+        }
 
         this.hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
             if (data.fatal) {
@@ -265,7 +290,9 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
         }
     }
 
-    private isHls(url: string): boolean {
+    private isHls(source: IResolvedMediaSource): boolean {
+        if (source.isHls === true) return true;
+        const url = source.url ?? '';
         try {
             const pathname = new URL(url).pathname;
             return pathname.endsWith('.m3u8');
@@ -303,7 +330,7 @@ class WebAudioController extends EventEmitter<IAudioControllerEvents> implements
         return { cleanUrl: url };
     }
 
-    private buildHeaders(source: IPlugin.IMediaSourceResult): Record<string, string> | null {
+    private buildHeaders(source: IResolvedMediaSource): Record<string, string> | null {
         const headers: Record<string, string> = {};
         if (source.headers) {
             Object.assign(headers, source.headers);

@@ -16,6 +16,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { X, Play, ListMusic } from 'lucide-react';
 import { cn } from '@common/cn';
 import { isSameMedia } from '@common/mediaKey';
+import { isRadioBrowserMedia } from '@common/radioBrowser';
 import type { IMusicItemSlim } from '@appTypes/infra/musicSheet';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import { useCurrentMusic, useMusicQueue } from '@renderer/mainWindow/core/trackPlayer/hooks';
@@ -58,7 +59,7 @@ const QueueItemRow = React.memo(function QueueItemRow({
     const handleContextMenu = useCallback(
         (e: React.MouseEvent) => {
             e.preventDefault();
-            onContextMenu(item, e);
+            if (!isRadioBrowserMedia(item)) onContextMenu(item, e);
         },
         [onContextMenu, item],
     );
@@ -119,7 +120,9 @@ const QueueItemRow = React.memo(function QueueItemRow({
                 <div className="l-queue-drawer__item-title">{item.title}</div>
                 <div className="l-queue-drawer__item-meta">
                     <span className="l-queue-drawer__item-artist">{item.artist}</span>
-                    <span className="l-queue-drawer__item-source">{item.platform}</span>
+                    <span className="l-queue-drawer__item-source">
+                        {isRadioBrowserMedia(item) ? t('radio.live') : item.platform}
+                    </span>
                 </div>
             </div>
 

@@ -1,4 +1,5 @@
 import { type HTMLAttributes } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@common/cn';
 import { RequestStatus } from '@common/constant';
@@ -23,6 +24,8 @@ export interface ListFooterProps extends HTMLAttributes<HTMLDivElement> {
  *   done:    水平线 h-1px bg white/4 + "没有更多了" 12px white/15 + 水平线, gap-16, py-32
  */
 export function ListFooter({ status, onRetry, className, ...rest }: ListFooterProps) {
+    const { t } = useTranslation();
+
     if (status === RequestStatus.Idle) {
         return null;
     }
@@ -31,7 +34,7 @@ export function ListFooter({ status, onRetry, className, ...rest }: ListFooterPr
         return (
             <div className={cn('list-footer', 'list-footer--loading', className)} {...rest}>
                 <Loader2 className="list-footer__spinner" aria-hidden="true" />
-                <span className="list-footer__text">加载中…</span>
+                <span className="list-footer__text">{t('status.loading_more')}…</span>
             </div>
         );
     }
@@ -39,12 +42,12 @@ export function ListFooter({ status, onRetry, className, ...rest }: ListFooterPr
     if (status === RequestStatus.Error) {
         return (
             <div className={cn('list-footer', 'list-footer--error', className)} {...rest}>
-                <span className="list-footer__text">加载失败</span>
+                <span className="list-footer__text">{t('status.load_error')}</span>
                 <span className="list-footer__dot" aria-hidden="true">
                     ·
                 </span>
                 <button type="button" className="list-footer__retry" onClick={onRetry}>
-                    点击重试
+                    {t('status.click_to_retry')}
                 </button>
             </div>
         );
@@ -54,7 +57,7 @@ export function ListFooter({ status, onRetry, className, ...rest }: ListFooterPr
     return (
         <div className={cn('list-footer', 'list-footer--done', className)} {...rest}>
             <div className="list-footer__line" aria-hidden="true" />
-            <span className="list-footer__text">没有更多了</span>
+            <span className="list-footer__text">{t('status.no_more')}</span>
             <div className="list-footer__line" aria-hidden="true" />
         </div>
     );

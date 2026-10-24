@@ -13,12 +13,14 @@
 import { nanoid } from 'nanoid';
 import { INTERNAL_SLIM_KEY } from '@common/constant';
 import { compositeKey } from '@common/mediaKey';
+import { RADIO_BROWSER_PLATFORM } from '@common/radioBrowser';
 import {
     DEFAULT_FAVORITE_SHEET_ID,
     DOWNLOADED_SHEET_ID,
     MAX_MUSIC_PER_SHEET,
     MAX_QUEUE_SIZE,
     PLAY_QUEUE_SHEET_ID,
+    RADIO_FAVORITE_SHEET_ID,
     type IMusicSheetEvent,
 } from '@infra/musicSheet/common/constant';
 import type {
@@ -125,6 +127,17 @@ function createDefaultData(): IMusicSheetData {
                 createdAt: now,
                 updatedAt: now,
             },
+            {
+                id: RADIO_FAVORITE_SHEET_ID,
+                title: '电台收藏',
+                artwork: null,
+                description: null,
+                type: 'system',
+                folderPath: null,
+                sortOrder: -997,
+                createdAt: now,
+                updatedAt: now,
+            },
         ],
         relations: [],
         items: {},
@@ -152,7 +165,7 @@ class MusicSheetStore {
         const data = await this.file.load();
         if (!this.ensured) {
             this.ensured = true;
-            // 确保三个内置歌单存在（对齐 ensureDefaultSheet / ensurePlayQueueSheet / ensureDownloadedSheet）
+            // 确保内置歌单存在。
             let changed = false;
             for (const def of createDefaultData().sheets) {
                 if (!data.sheets.some((s) => s.id === def.id)) {
@@ -160,6 +173,30 @@ class MusicSheetStore {
                     changed = true;
                 }
             }
+
+            // 将旧版本误放入「我喜欢」的电台幂等迁移到专属系统歌单。
+            const migratedKeys = new Set(
+                data.relations
+                    .filter((relation) => relation.sheetId === RADIO_FAVORITE_SHEET_ID)
+                    .map((relation) => compositeKey(relation.platform, relation.musicId)),
+            );
+            const nextRelations: IStoredRelation[] = [];
+            for (const relation of data.relations) {
+                const isLegacyRadio =
+                    relation.sheetId === DEFAULT_FAVORITE_SHEET_ID &&
+                    relation.platform === RADIO_BROWSER_PLATFORM;
+                if (!isLegacyRadio) {
+                    nextRelations.push(relation);
+                    continue;
+                }
+                const key = compositeKey(relation.platform, relation.musicId);
+                if (!migratedKeys.has(key)) {
+                    nextRelations.push({ ...relation, sheetId: RADIO_FAVORITE_SHEET_ID });
+                    migratedKeys.add(key);
+                }
+                changed = true;
+            }
+            data.relations = nextRelations;
             if (changed) this.file.scheduleSave();
         }
         return data;
@@ -333,7 +370,11 @@ class MusicSheetStore {
         if (sheetId === DEFAULT_FAVORITE_SHEET_ID) {
             throw new Error('无法删除默认收藏歌单');
         }
-        if (sheetId === PLAY_QUEUE_SHEET_ID) {
+        if (
+            sheetId === PLAY_QUEUE_SHEET_ID ||
+            sheetId === DOWNLOADED_SHEET_ID ||
+            sheetId === RADIO_FAVORITE_SHEET_ID
+        ) {
             throw new Error('无法删除系统歌单');
         }
         const data = await this.init();
@@ -348,6 +389,7 @@ class MusicSheetStore {
         const data = await this.init();
         const sheet = data.sheets.find((s) => s.id === params.id);
         if (!sheet) return;
+        if (sheet.type === 'system') throw new Error('无法修改系统歌单');
         // 未提供字段或显式传 null 时，保留现有字段值
         sheet.title = params.title ?? sheet.title;
         sheet.artwork = params.artwork ?? sheet.artwork;
@@ -692,11 +734,11 @@ class MusicSheetStore {
         this.broadcast({ origin: 'internal', sheetId: DOWNLOADED_SHEET_ID });
     }
 
-    /** 所有可导出歌单（排除 system） */
+    /** 所有可导出歌单（包含隐藏的电台收藏系统歌单） */
     public async getExportableSheets(): Promise<Array<{ id: string; title: string }>> {
         const data = await this.init();
         return data.sheets
-            .filter((s) => s.type !== 'system')
+            .filter((s) => s.type !== 'system' || s.id === RADIO_FAVORITE_SHEET_ID)
             .map((s) => ({ id: s.id, title: s.title }));
     }
 
@@ -733,8 +775,14 @@ class MusicSheetStore {
                 (s) => s.type !== 'system' && s.id !== DEFAULT_FAVORITE_SHEET_ID,
             );
             const killedIds = new Set(userSheets.map((s) => s.id));
+            const restoreRadioFavorites = sheets.some(
+                (sheet) => sheet.id === RADIO_FAVORITE_SHEET_ID,
+            );
             data.relations = data.relations.filter(
-                (r) => !killedIds.has(r.sheetId) && r.sheetId !== DEFAULT_FAVORITE_SHEET_ID,
+                (relation) =>
+                    !killedIds.has(relation.sheetId) &&
+                    relation.sheetId !== DEFAULT_FAVORITE_SHEET_ID &&
+                    !(restoreRadioFavorites && relation.sheetId === RADIO_FAVORITE_SHEET_ID),
             );
             data.sheets = data.sheets.filter((s) => !killedIds.has(s.id));
         }
@@ -751,6 +799,8 @@ class MusicSheetStore {
             let targetSheetId: string;
             if (sheet.id === DEFAULT_FAVORITE_SHEET_ID) {
                 targetSheetId = DEFAULT_FAVORITE_SHEET_ID;
+            } else if (sheet.id === RADIO_FAVORITE_SHEET_ID) {
+                targetSheetId = RADIO_FAVORITE_SHEET_ID;
             } else {
                 targetSheetId = nanoid();
                 const now = Date.now();
@@ -778,6 +828,12 @@ class MusicSheetStore {
             );
             const now = Date.now();
             for (const item of sheet.musicList ?? []) {
+                if (
+                    targetSheetId === RADIO_FAVORITE_SHEET_ID &&
+                    item.platform !== RADIO_BROWSER_PLATFORM
+                ) {
+                    continue;
+                }
                 this.toStoredItem(data, item);
                 const key = relKeyOf(targetSheetId, item.platform, String(item.id));
                 if (!relSet.has(key)) {
