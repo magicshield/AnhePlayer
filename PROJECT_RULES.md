@@ -182,7 +182,7 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*anhe*' } | ForEac
 1. 启动应用前设置环境变量附加远程调试参数：`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS='--remote-debugging-port=9333 --remote-allow-origins=*'`。
 2. 访问 `http://localhost:9333/json/list` 拿页面 target，用 CDP（`Runtime.enable` + `Log.enable` + `Page.reload`）抓取完整加载过程的控制台与未捕获异常堆栈。
 3. 避开本机 Chrome 占用的 9222 等端口（Chrome 占 IPv4 时 WebView2 会退到 `[::1]` 监听，容易误判为"端口无响应"）。
-4. 端到端验证修复产物（无需重新打包）：`vite build` + `vite preview` 后，用 CDP `Page.navigate` 把窗口导航到 preview 地址，即可用真实 Rust 后端跑修复后的前端产物。注意此时页面属于 remote origin，`plugin:event|listen` 等内核插件命令会因 ACL 被拒（预期现象，非 Bug）；自定义命令与数据链路不受影响。
+4. 端到端验证修复产物（无需重新打包）：启动 Vite dev/preview 后，用 CDP `Page.navigate` 把窗口导航到对应地址，即可在真实 WebView2 中运行当前前端代码。注意此时页面属于 remote origin，Tauri ACL 可能拒绝 `fs_*`、`show_item_in_folder` 等自定义命令；部分桥接会把拒绝静默降级为 `false` 或空数据。remote origin 只用于纯前端交互验证，系统命令与持久化链路必须切回 `tauri.localhost` 或使用 CI 构建的新产物验证。
 
 **验证方式**：CDP 抓到 `[TauriBridge]` 日志序列与具体异常堆栈即定位成功；导航法能直接看到 UI 是否渲染（`#root` 子节点数）。
 
@@ -309,6 +309,76 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*anhe*' } | ForEac
 **验证方式**：恢复后 `getAllMusicItems()` 数量与抽样 id 与事故前一致。
 
 **适用范围**：所有涉及用户数据的高层 API 的测试设计。
+
+---
+
+### 2.12 不重编译 Rust 时，当前前端必须在真实 WebView2 中用 CDP 验证
+
+**触发信号**：需要验证右键菜单、键鼠事件、WebView2 默认行为或前端与 Tauri 系统命令的集成，但本机无法构建当前 Rust 宿主。
+
+**根因/约束**：
+
+1. 普通 Chrome 打开 Vite 页面只能证明 React 逻辑，不能证明 WebView2 的原生菜单、Tauri 注入和 ACL 行为。
+2. 已安装应用可以作为真实 Tauri/WebView2 宿主，再通过 CDP 导航到 Vite dev/preview，运行工作区里的当前前端代码；但该页面属于 remote origin，`fs_*`、`show_item_in_folder` 等命令可能被 ACL 拒绝。部分桥接会捕获异常并返回 `false`/空数据，看起来像“命令没执行且没报错”。
+3. WebView2 的用户数据目录仍被旧的 `msedgewebview2.exe` 占用时，带不同 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` 重启应用会报 `HRESULT(0x8007139F)`（“组或资源的状态不是执行请求操作的正确状态”）。这不是前端或 Tauri 代码错误。
+4. `Page.captureScreenshot` 只截网页表面，不足以单独证明系统级 Chromium 菜单没有出现；必须结合真实 CDP 输入和事件的 `defaultPrevented` 状态判断。
+
+**正确做法**：
+
+1. **启动当前前端**：优先直接运行现有本地 CLI（如 `./node_modules/.bin/vite --host 127.0.0.1 --port 5173`）。若 `pnpm` 因依赖状态检查尝试重装 optional package，不要反复重试安装；前端构建和 lint 同样可直接调用 `node_modules/.bin` 下的工具。
+2. **干净重启调试宿主**：先从现有进程的 `ExecutablePath` 获取安装路径，不要假定安装盘符；关闭 `anhe-player.exe` 后，只清理命令行含 `com.anhe.player` 的残留 WebView2 进程，禁止杀掉系统中全部 `msedgewebview2.exe`：
+
+    ```powershell
+    Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
+      Where-Object { $_.CommandLine -match 'com\.anhe\.player' } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    ```
+
+3. **启用 CDP 后启动应用**：
+
+    ```bash
+    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333 --disable-background-timer-throttling" "/实际安装路径/anhe-player.exe"
+    ```
+
+    用 `http://127.0.0.1:9333/json` 确认存在 URL 含 `mainWindow` 的 page target，再通过 CDP `Page.navigate` 或 `Runtime.evaluate` 导航到 `http://127.0.0.1:5173/mainWindow.html`。
+
+4. **测试数据只做内存注入**：若 remote origin 因 ACL 读不到本地曲库，可在进入页面前临时替换数据提供者（例如 `localMusic.getAllMusicItems`）返回一条 mock 曲目。禁止为了造数据调用 `syncScanFolders` 等会按输入集合做删除的高层 API，见 2.11。
+5. **右键必须用真实 CDP 输入验证**：先在 `document` 冒泡阶段记录 `contextmenu` 的 `defaultPrevented`，再用 `Input.dispatchMouseEvent` 向歌曲行发送 `mousePressed`/`mouseReleased`，`button: 'right'`。不要只用 JS `dispatchEvent`，合成事件不会触发系统默认菜单。
+
+    ```js
+    window.__rightClickEvents = [];
+    document.addEventListener('contextmenu', (event) => {
+        window.__rightClickEvents.push({
+            defaultPrevented: event.defaultPrevented,
+            text: event.target?.textContent,
+        });
+    });
+    ```
+
+    验证时同时读取：
+    - `window.__rightClickEvents.at(-1).defaultPrevented === true`；
+    - `document.querySelectorAll('.context-menu').length === 1`；
+    - `.context-menu__item-label` 包含预期菜单项；
+    - `Page.captureScreenshot` 中只看到应用菜单。
+
+    如果“应用菜单 + Chromium 调试菜单”同时出现，优先检查共享右键入口是否调用 `event.preventDefault()`；`stopPropagation()` 不能阻止浏览器默认菜单。菜单状态使用单一 atom 时，不要先绕去排查重复渲染或 Rust 命令。
+
+6. **系统命令分层验证**：remote origin 下命令失败是 ACL 预期行为。纯系统层验证应先导航回 `http://tauri.localhost/mainWindow.html`，再通过 `window.__TAURI_INTERNALS__.invoke(...)` 调用命令；这一步验证的是已安装宿主中的 Rust 命令，不代表 remote origin 的当前前端已完成端到端集成。若必须验证“当前前端 + 当前 Rust + 用户数据”的完整链路，只能使用 CI 新构建产物或具备 MSVC 的本机 dev build，禁止为调试临时放宽生产 ACL。
+7. **验证资源管理器定位结果**：不要只看命令返回 `true`，还要读取 Explorer 当前选中项：
+
+    ```powershell
+    $shell = New-Object -ComObject Shell.Application
+    foreach ($window in @($shell.Windows())) {
+      $selected = @($window.Document.SelectedItems()) | ForEach-Object { $_.Path }
+      [pscustomobject]@{ LocationURL = $window.LocationURL; Selected = $selected }
+    }
+    ```
+
+    `Selected` 必须等于目标文件的绝对路径。验证结束后关闭本次打开的 Explorer 窗口，并清理 Vite 进程、临时文件和测试页面。
+
+**验证方式**：真实 WebView2 中由 CDP `Input.dispatchMouseEvent` 触发右键，事件记录为 `defaultPrevented: true`，页面恰有一个 `.context-menu`；系统命令从 `tauri.localhost` 返回成功，且 Explorer COM 读取到目标文件为当前选中项。
+
+**适用范围**：所有无需重打包即可完成的前端交互验证，以及前端行为与 Tauri 系统能力需要分层排查的场景。
 
 ---
 

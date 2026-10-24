@@ -535,6 +535,10 @@ export function SongTable({
     // ── 右键选中 ──
     const handleRowContextMenu = useCallback(
         (item: IMusic.IMusicItemBase, index: number, e: ReactMouseEvent) => {
+            if (externalOnRowContextMenuRef.current) {
+                e.preventDefault();
+            }
+
             let effectiveIds: Set<string>;
             if (selectedIdsRef.current.has(item.id)) {
                 // 右键项已在选区内 → 保留多选

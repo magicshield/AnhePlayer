@@ -1,9 +1,9 @@
 {
-    "version": "1.0.32",
+    "version": "1.0.33",
     "changeLog": [
-        "新版提示弹窗只保留一个前往下载按钮，统一打开 https://anhe-player.loc.cc",
-        "关于页面的官方网站文字与链接同步改为 https://anhe-player.loc.cc",
-        "更新下载入口不再使用旧公告中的 GitHub 下载直链"
+        "修复本地歌曲“在文件管理器中显示”可能打开文档目录而未选中歌曲的问题",
+        "修复歌曲列表右键时应用菜单与 Chromium 原生调试菜单同时出现的问题",
+        "本地歌曲右键菜单使用更明确的“在文件管理器中显示”文案"
     ],
     "download": ["https://anhe-player.loc.cc"]
 }
