@@ -101,10 +101,13 @@ function createGenreLabel(text: string): THREE.Sprite {
     canvas.width = 320;
     canvas.height = 72;
     const context = canvas.getContext('2d')!;
-    context.font = '600 25px "Microsoft YaHei", sans-serif';
+    context.font =
+        '600 25px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillStyle = 'rgba(238,247,242,.84)';
+    context.shadowColor = 'rgba(0, 0, 0, 0.92)';
+    context.shadowBlur = 8;
+    context.fillStyle = 'rgba(245, 252, 248, 0.95)';
     context.fillText(text, 160, 36);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;

@@ -2,6 +2,7 @@
 // PlayerBar — 底部播放栏
 // ============================================================================
 
+import { useEffect } from 'react';
 import { SkipBack, SkipForward, Play, Pause, ListMusic, Maximize2, Shuffle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { DesktopLyric } from '@renderer/common/icons';
@@ -54,8 +55,16 @@ export default function PlayerBar() {
     const [enableDesktopLyric] = useConfigValue('lyric.enableDesktopLyric');
 
     const isPlaying = playerState === PlayerState.Playing;
-    const hasMusic = currentMusic != null;
-    const isLive = isRadioBrowserMedia(currentMusic);
+    const isRadio = isRadioBrowserMedia(currentMusic);
+    const hasMusic = currentMusic != null && !isRadio;
+    const isLive = false;
+
+    // 隔离防护：播放器仅供音乐使用，若存在历史电台条目立即清空
+    useEffect(() => {
+        if (isRadio) {
+            trackPlayer.clearPlayback();
+        }
+    }, [isRadio]);
 
     // 优先展示实际播放来源：自动换源后可能与歌曲原始平台不同
     const displayPlatform = playbackSource?.platform ?? currentMusic?.platform;

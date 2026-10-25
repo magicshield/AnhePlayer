@@ -51,3 +51,32 @@
         margin-bottom: var(--size-player-h);
     }
 }
+
+// ─── 沉浸式电台全屏模式 ───
+
+.l-app-shell--immersive-radio {
+    .l-sidebar {
+        display: none !important;
+    }
+
+    .l-topbar {
+        display: none !important;
+    }
+
+    .l-player-bar {
+        display: none !important;
+    }
+
+    .l-app-shell__main {
+        width: 100vw;
+        height: 100vh;
+    }
+
+    .l-app-shell__content {
+        width: 100vw;
+        height: 100vh;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
+}

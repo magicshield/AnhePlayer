@@ -78,6 +78,10 @@
     },
     "radio": {
         "title": "电台",
+        "exit": "退出电台",
+        "exit_immersive": "退出沉浸模式",
+        "fullscreen": "全屏",
+        "exit_fullscreen": "退出全屏",
         "description": "发现并收听来自世界各地的直播广播。",
         "search_placeholder": "搜索电台名称...",
         "search_station": "搜索电台",

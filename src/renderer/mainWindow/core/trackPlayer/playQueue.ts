@@ -68,12 +68,20 @@ class PlayQueue {
     // ─── 初始化（启动恢复） ───
 
     async setup(): Promise<void> {
-        this.slimList = await playQueueBridge.getAll();
+        const rawList = await playQueueBridge.getAll();
+        // 隔离电台：播放队列专属于音乐，清理历史残留的电台条目
+        const legacyRadioItems = rawList.filter(isRadioBrowserMedia);
+        if (legacyRadioItems.length > 0) {
+            this.mutationQueue.enqueue(() => playQueueBridge.remove(legacyRadioItems));
+        }
+        this.slimList = rawList.filter((item: IMusicItemSlim) => !isRadioBrowserMedia(item));
         this.rebuildIndexMap();
 
         const savedMusic = syncKV.get('player.currentMusic');
-        if (savedMusic) {
+        if (savedMusic && !isRadioBrowserMedia(savedMusic)) {
             this.currentIndex = this.indexMap.indexOf(savedMusic);
+        } else if (savedMusic && isRadioBrowserMedia(savedMusic)) {
+            syncKV.remove('player.currentMusic');
         }
         this.syncAtom();
     }
@@ -175,43 +183,10 @@ class PlayQueue {
     }
 
     /**
-     * 将电台写入可复用调谐槽，避免浏览时不断扩充播放队列。
-     * @returns 电台在队列中的位置
+     * @deprecated 电台已完全独立于音乐播放队列，该方法保留兼容但不再操作队列
      */
-    tuneRadioSlot(station: IRadioBrowserMusicItem): number {
-        const exactIndex = this.findIndex(station);
-        let targetIndex = exactIndex;
-        if (targetIndex < 0) {
-            const current = this.getCurrentMusic();
-            targetIndex = isRadioBrowserMedia(current)
-                ? this.currentIndex
-                : this.slimList.findIndex(isRadioBrowserMedia);
-        }
-
-        const slim = musicItemToSlim(station);
-        if (targetIndex < 0) {
-            targetIndex = this.slimList.length;
-            this.slimList = [...this.slimList, slim];
-        } else {
-            const previous = this.slimList[targetIndex];
-            if (previous) this.rawItemCache.delete(this.keyOf(previous));
-            this.slimList = this.slimList.map((item, index) =>
-                index === targetIndex ? slim : item,
-            );
-        }
-
-        this.rawItemCache.set(this.keyOf(station), station);
-        this.rebuildIndexMap();
-        if (this._isShuffleActive) this.regenerateShuffleOrder();
-        this.syncAtom();
-
-        const persistedItems = this.slimList.map((item, index) =>
-            index === targetIndex ? station : item,
-        );
-        this.mutationQueue.enqueue(() =>
-            playQueueBridge.set(persistedItems as IMusic.IMusicItem[]),
-        );
-        return targetIndex;
+    tuneRadioSlot(_station: IRadioBrowserMusicItem): number {
+        return -1;
     }
 
     /** 移除指定歌曲 */

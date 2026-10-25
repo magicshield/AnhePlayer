@@ -392,6 +392,19 @@ Get-CimInstance Win32_Process | Where-Object { $_.Name -like '*anhe*' } | ForEac
 
 ---
 
+### 3.2 语言支持：仅维护简体中文（zh-CN）
+
+**触发信号**：新增或修改功能文案、i18n key 时，习惯性地尝试同步修改或补齐其他语言包。
+
+**根因/约束**：本项目受众与开发维护均以简体中文为主，不需要花费精力适配或同步其他语言。
+
+**正确做法**：
+
+1. **本项目仅支持并维护简体中文（zh-CN）**，所有新增/修改文案与 i18n 键只写入 `res/lang/zh-CN.json`。
+2. **禁止**向 `zh-TW.json`、`en-US.json` 等其他语言包追加 key 或做多语言同步，避免无意义的维护开销与冗余代码。
+
+---
+
 ## 四、已知问题（非本次引入）
 
 - `components/ui/MediaGrid` 用裸 `data.map` 渲染，未做虚拟化（`SongTable`/`QueueDrawer` 已用 react-virtuoso）；被 ArtistPage / RecommendSheetsPage / SearchPage 使用，结果集大时是内存隐患。

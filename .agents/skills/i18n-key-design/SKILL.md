@@ -103,3 +103,9 @@ Keys describe **what the text means**, not **where it appears**.
 ✅ plugin.uninstall_confirm
 ❌ modal.confirm_uninstall_plugin
 ```
+
+### Language support: Simplified Chinese (zh-CN) ONLY
+
+This project **only** supports and maintains Simplified Chinese (`res/lang/zh-CN.json`).
+- Always and only write new keys and translations into `res/lang/zh-CN.json`.
+- Do **NOT** modify, append keys to, or sync with `zh-TW.json`, `en-US.json`, or any other language files.

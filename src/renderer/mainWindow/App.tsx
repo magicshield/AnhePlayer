@@ -36,7 +36,7 @@ export default function App() {
     const isRadioPage = location.pathname.split('/')[1] === RoutePaths.Radio;
 
     return (
-        <div className="l-app-shell">
+        <div className={cn('l-app-shell', isRadioPage && 'l-app-shell--immersive-radio')}>
             <Sidebar />
             <main className="l-app-shell__main">
                 <TopBar />
