@@ -8,6 +8,7 @@
  */
 
 import type { RepeatMode } from '@common/constant';
+import type { IRadioBrowserMusicItem } from '@common/radioBrowser';
 
 // ═══════════════════════════════════════════════════════
 // Schema 定义
@@ -34,6 +35,8 @@ export interface ISyncKVSchema {
 export interface IAsyncKVSchema {
     /** 最近播放列表（完整 IMusicItem，按时间倒序） */
     recentlyPlayed: IMusic.IMusicItem[];
+    /** 电台收听历史列表（完整 IRadioBrowserMusicItem，按时间倒序） */
+    radioHistory: IRadioBrowserMusicItem[];
 }
 
 // ═══════════════════════════════════════════════════════

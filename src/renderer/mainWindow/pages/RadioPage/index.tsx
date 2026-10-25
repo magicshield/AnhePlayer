@@ -7,6 +7,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Globe2,
+    History,
     Lock,
     Maximize2,
     Minimize2,
@@ -17,10 +18,9 @@ import {
     Search,
     SkipBack,
     SkipForward,
-    SlidersHorizontal,
     Sparkles,
     Square,
-    RotateCcw,
+    Trash2,
     Unlock,
     Volume1,
     Volume2,
@@ -31,6 +31,7 @@ import { useTranslation } from 'react-i18next';
 import { RequestStatus } from '@common/constant';
 import { compositeKey } from '@common/mediaKey';
 import {
+    RADIO_BITRATE_FILTERS,
     RADIO_BROWSER_PLATFORM,
     RADIO_BROWSER_WEBSITE,
     type IRadioBrowserMusicItem,
@@ -40,6 +41,7 @@ import systemUtil from '@infra/systemUtil/renderer';
 import appConfig from '@infra/appConfig/renderer';
 import musicSheet, { useRadioFavorites, useRadioIsFavorite } from '@infra/musicSheet/renderer';
 import { useCurrentThemePack } from '@infra/themepack/renderer';
+import { useConfigValue } from '@renderer/common/hooks/useConfigValue';
 import { RoutePaths } from '../../routes';
 import { A } from '../../components/ui/A';
 import RadioScene, { type IRadioSceneHandle } from './components/RadioScene';
@@ -49,6 +51,11 @@ import {
     useRadioPlaybackState,
     useRadioVolume,
 } from './services/radioAudioPlayer';
+import {
+    useRadioHistory,
+    removeFromRadioHistory,
+    clearRadioHistory,
+} from './services/radioHistory';
 import {
     buildRadioSceneNodes,
     type RadioGenreFamily,
@@ -73,20 +80,6 @@ const GENRE_FILTERS: Array<{ label: RadioGenreFamily | '全部'; tag: string }> 
     { label: '嘻哈', tag: 'hip hop' },
 ];
 
-interface IBitrateFilter {
-    key: string;
-    label: string;
-    min?: number;
-    max?: number;
-}
-
-const BITRATE_FILTERS: IBitrateFilter[] = [
-    { key: 'all', label: '全部', min: undefined, max: undefined },
-    { key: '128', label: '≥ 128 kbps', min: 128, max: undefined },
-    { key: '192', label: '≥ 192 kbps', min: 192, max: undefined },
-    { key: '320', label: '320 kbps', min: 320, max: 320 },
-] as const;
-
 type TuningState = 'idle' | 'interacting' | 'settling' | 'locked' | 'buffering' | 'error';
 
 function stationKey(station: Pick<IRadioBrowserMusicItem, 'platform' | 'id'>): string {
@@ -108,15 +101,32 @@ export default function RadioPage() {
     const lastTuneAtRef = useRef(0);
 
     const [layout, setLayout] = useState<RadioSceneLayout>('globe');
-    const [filters, setFilters] = useState<IRadioStationFilters>({});
-    const [bitrateKey, setBitrateKey] = useState('all');
+    const [configBitrate] = useConfigValue('radio.bitrate');
+    const [configCountryCode] = useConfigValue('radio.countryCode');
+    const [configLanguage] = useConfigValue('radio.language');
+    const [activeGenreTag, setActiveGenreTag] = useState('');
+
+    const filters = useMemo<IRadioStationFilters>(() => {
+        const bitrateTarget =
+            RADIO_BITRATE_FILTERS.find((item) => item.key === (configBitrate || 'all')) ??
+            RADIO_BITRATE_FILTERS[0];
+        return {
+            countryCode: configCountryCode || undefined,
+            language: configLanguage || undefined,
+            tag: activeGenreTag || undefined,
+            bitrateMin: bitrateTarget.min,
+            bitrateMax: bitrateTarget.max,
+        };
+    }, [configBitrate, configCountryCode, configLanguage, activeGenreTag]);
+
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
     const [hoveredKey, setHoveredKey] = useState<string | null>(null);
     const [injectedStation, setInjectedStation] = useState<IRadioBrowserMusicItem | null>(null);
     const [searchOpen, setSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [favoritesOpen, setFavoritesOpen] = useState(false);
-    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
+    const historyList = useRadioHistory();
     const [locked, setLocked] = useState(false);
     const [tuningState, setTuningState] = useState<TuningState>('idle');
     const [webglLost, setWebglLost] = useState(false);
@@ -128,8 +138,7 @@ export default function RadioPage() {
     } | null>(null);
     const tuningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const { stations, facets, status, facetsStatus, retry, retryFacets } =
-        useRadioExplorer(filters);
+    const { stations, facets, status, retry } = useRadioExplorer(filters);
     const { results: searchResults, status: searchStatus } = useRadioSearch(
         searchQuery,
         searchOpen,
@@ -150,28 +159,6 @@ export default function RadioPage() {
         () => new Map(facets.tags.map((tag) => [tag.value.toLowerCase(), tag.count] as const)),
         [facets.tags],
     );
-
-    const sortedCountries = useMemo(() => {
-        const list = [...facets.countries];
-        const cnIndex = list.findIndex((c) => c.value.toUpperCase() === 'CN');
-        if (cnIndex > 0) {
-            const [cn] = list.splice(cnIndex, 1);
-            list.unshift(cn);
-        }
-        return list;
-    }, [facets.countries]);
-
-    const sortedLanguages = useMemo(() => {
-        const list = [...facets.languages];
-        const zhIndex = list.findIndex(
-            (l) => l.value.toLowerCase() === 'chinese' || l.value.toLowerCase() === 'zh',
-        );
-        if (zhIndex > 0) {
-            const [zh] = list.splice(zhIndex, 1);
-            list.unshift(zh);
-        }
-        return list;
-    }, [facets.languages]);
 
     const chipsRef = useRef<HTMLDivElement>(null);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -320,13 +307,13 @@ export default function RadioPage() {
     }, []);
 
     useEffect(() => {
-        if (!locked && !searchOpen && !favoritesOpen && !filtersOpen) return;
+        if (!locked && !searchOpen && !favoritesOpen && !historyOpen) return;
         if (settleTimerRef.current) {
             clearTimeout(settleTimerRef.current);
             settleTimerRef.current = null;
         }
         setTuningState(locked ? 'locked' : 'idle');
-    }, [favoritesOpen, filtersOpen, locked, searchOpen]);
+    }, [favoritesOpen, historyOpen, locked, searchOpen]);
 
     useEffect(() => {
         if (settleTimerRef.current) {
@@ -375,7 +362,7 @@ export default function RadioPage() {
     const handleInteractionEnd = useCallback(
         (centerKey: string | null) => {
             if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-            if (!centerKey || locked || searchOpen || favoritesOpen || filtersOpen) {
+            if (!centerKey || locked || searchOpen || favoritesOpen || historyOpen) {
                 setTuningState(locked ? 'locked' : 'idle');
                 return;
             }
@@ -398,7 +385,7 @@ export default function RadioPage() {
                 }
             }, 700);
         },
-        [favoritesOpen, filtersOpen, locked, nodeByKey, searchOpen, tuneStation],
+        [favoritesOpen, historyOpen, locked, nodeByKey, searchOpen, tuneStation],
     );
 
     const handlePlayClick = useCallback(() => {
@@ -435,19 +422,18 @@ export default function RadioPage() {
     const chooseExternalStation = useCallback(
         (station: IRadioBrowserMusicItem) => {
             focusStation(station);
+            tuneStation(station);
             setSearchOpen(false);
             setFavoritesOpen(false);
+            setHistoryOpen(false);
             setSearchQuery('');
         },
-        [focusStation],
+        [focusStation, tuneStation],
     );
 
     const handleGenreChipClick = useCallback(
         async (genreItem: { label: RadioGenreFamily | '全部'; tag: string }) => {
-            setFilters((current) => ({
-                ...current,
-                tag: genreItem.tag || undefined,
-            }));
+            setActiveGenreTag(genreItem.tag);
 
             if (genreItem.label === '全部') {
                 sceneRef.current?.highlightGenreFamily(null);
@@ -509,25 +495,6 @@ export default function RadioPage() {
         [allStations, layout, nodes, tuneStation],
     );
 
-    const setBitrateFilter = useCallback((key: string) => {
-        const target = BITRATE_FILTERS.find((item) => item.key === key) ?? BITRATE_FILTERS[0];
-        setBitrateKey(target.key);
-        setFilters((current) => ({
-            ...current,
-            bitrateMin: target.min,
-            bitrateMax: target.max,
-        }));
-    }, []);
-
-    const hasActiveFilters = Boolean(
-        filters.countryCode || filters.language || filters.tag || bitrateKey !== 'all',
-    );
-
-    const handleResetFilters = useCallback(() => {
-        setBitrateKey('all');
-        setFilters({});
-    }, []);
-
     useEffect(() => {
         const handleKeyDown = (event: globalThis.KeyboardEvent) => {
             const target = event.target as HTMLElement | null;
@@ -551,8 +518,8 @@ export default function RadioPage() {
                     setFavoritesOpen(false);
                     return;
                 }
-                if (filtersOpen) {
-                    setFiltersOpen(false);
+                if (historyOpen) {
+                    setHistoryOpen(false);
                     return;
                 }
                 handleExit();
@@ -578,7 +545,7 @@ export default function RadioPage() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [favoritesOpen, filtersOpen, handleExit, moveSelection, searchOpen, toggleFavorite]);
+    }, [favoritesOpen, historyOpen, handleExit, moveSelection, searchOpen, toggleFavorite]);
 
     const tuningLabel = locked
         ? t('radio.tuning_locked')
@@ -640,12 +607,16 @@ export default function RadioPage() {
                 <div className="p-radio-explorer__top-right">
                     <div className="p-radio-explorer__tools">
                         <button
-                            className="p-radio-explorer__icon-btn"
+                            className={`p-radio-explorer__icon-btn ${searchOpen ? 'is-active' : ''}`}
                             type="button"
                             title={t('radio.search_station')}
                             aria-label={t('radio.search_station')}
                             aria-expanded={searchOpen}
-                            onClick={() => setSearchOpen((current) => !current)}
+                            onClick={() => {
+                                setSearchOpen((current) => !current);
+                                setFavoritesOpen(false);
+                                setHistoryOpen(false);
+                            }}
                         >
                             <Search size={16} />
                         </button>
@@ -672,10 +643,29 @@ export default function RadioPage() {
                             </button>
                         </div>
                         <button
-                            className="p-radio-explorer__saved-btn"
+                            className={`p-radio-explorer__saved-btn ${historyOpen ? 'is-active' : ''}`}
                             type="button"
+                            title={t('radio.history')}
+                            aria-expanded={historyOpen}
+                            onClick={() => {
+                                setHistoryOpen((current) => !current);
+                                setFavoritesOpen(false);
+                                setSearchOpen(false);
+                            }}
+                        >
+                            <History size={15} />
+                            {t('radio.history')} {historyList.length}
+                        </button>
+                        <button
+                            className={`p-radio-explorer__saved-btn ${favoritesOpen ? 'is-active' : ''}`}
+                            type="button"
+                            title={t('radio.favorites')}
                             aria-expanded={favoritesOpen}
-                            onClick={() => setFavoritesOpen((current) => !current)}
+                            onClick={() => {
+                                setFavoritesOpen((current) => !current);
+                                setHistoryOpen(false);
+                                setSearchOpen(false);
+                            }}
                         >
                             <Bookmark size={15} />
                             {t('radio.favorites')} {favorites.length}
@@ -784,6 +774,65 @@ export default function RadioPage() {
                         </div>
                     )}
                 </section>
+            )}
+
+            {historyOpen && (
+                <aside
+                    className="p-radio-explorer__favorites p-radio-explorer__history-drawer"
+                    aria-label={t('radio.history')}
+                >
+                    <header>
+                        <div>
+                            <History size={16} />
+                            <strong>{t('radio.history')}</strong>
+                        </div>
+                        <div className="p-radio-explorer__drawer-header-actions">
+                            {historyList.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => clearRadioHistory()}
+                                    title={t('radio.clear_history')}
+                                    aria-label={t('radio.clear_history')}
+                                    className="p-radio-explorer__clear-btn"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setHistoryOpen(false)}
+                                aria-label={t('common.close')}
+                            >
+                                <X size={15} />
+                            </button>
+                        </div>
+                    </header>
+                    {historyList.length === 0 ? (
+                        <p>{t('radio.history_empty')}</p>
+                    ) : (
+                        <div className="p-radio-explorer__favorite-list">
+                            {historyList.map((station) => (
+                                <div key={stationKey(station)}>
+                                    <button
+                                        type="button"
+                                        onClick={() => chooseExternalStation(station)}
+                                    >
+                                        <strong>{station.title}</strong>
+                                        <span>{station.artist}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label={t('radio.remove_history')}
+                                        title={t('radio.remove_history')}
+                                        onClick={() => removeFromRadioHistory(station)}
+                                    >
+                                        <X size={13} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </aside>
             )}
 
             {favoritesOpen && (
@@ -1020,97 +1069,6 @@ export default function RadioPage() {
             )}
 
             <footer className="p-radio-explorer__bottom">
-                {filtersOpen && (
-                    <div className="p-radio-explorer__filter-panel">
-                        <div className="p-radio-explorer__filter-header">
-                            <span className="p-radio-explorer__filter-title">
-                                {t('radio.filter')}
-                            </span>
-                            {hasActiveFilters && (
-                                <button
-                                    type="button"
-                                    className="p-radio-explorer__filter-reset"
-                                    onClick={handleResetFilters}
-                                >
-                                    <RotateCcw size={12} />
-                                    <span>{t('radio.reset_filters')}</span>
-                                </button>
-                            )}
-                        </div>
-                        <div className="p-radio-explorer__filter-group">
-                            <span className="p-radio-explorer__filter-label">
-                                {t('radio.bitrate')}
-                            </span>
-                            <div className="p-radio-explorer__filter-options">
-                                {BITRATE_FILTERS.map((option) => (
-                                    <button
-                                        type="button"
-                                        key={option.key}
-                                        className={
-                                            bitrateKey === option.key ? 'is-active' : undefined
-                                        }
-                                        onClick={() => setBitrateFilter(option.key)}
-                                    >
-                                        {option.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="p-radio-explorer__filter-row">
-                            <label className="p-radio-explorer__filter-field">
-                                <span>{t('radio.country')}</span>
-                                <select
-                                    value={filters.countryCode ?? ''}
-                                    disabled={facetsStatus === RequestStatus.Pending}
-                                    onChange={(event) =>
-                                        setFilters((current) => ({
-                                            ...current,
-                                            countryCode: event.target.value || undefined,
-                                        }))
-                                    }
-                                >
-                                    <option value="">{t('radio.all_countries')}</option>
-                                    {sortedCountries.map((country) => (
-                                        <option key={country.value} value={country.value}>
-                                            {formatCountryName(country.value, country.label)} (
-                                            {country.count})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label className="p-radio-explorer__filter-field">
-                                <span>{t('radio.language')}</span>
-                                <select
-                                    value={filters.language ?? ''}
-                                    disabled={facetsStatus === RequestStatus.Pending}
-                                    onChange={(event) =>
-                                        setFilters((current) => ({
-                                            ...current,
-                                            language: event.target.value || undefined,
-                                        }))
-                                    }
-                                >
-                                    <option value="">{t('radio.all_languages')}</option>
-                                    {sortedLanguages.map((language) => (
-                                        <option key={language.value} value={language.value}>
-                                            {formatLanguageName(language.label || language.value)} (
-                                            {language.count})
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-                        </div>
-                        {facetsStatus === RequestStatus.Error && (
-                            <button
-                                type="button"
-                                className="p-radio-explorer__filter-retry"
-                                onClick={retryFacets}
-                            >
-                                {t('radio.retry_filters')}
-                            </button>
-                        )}
-                    </div>
-                )}
                 <div className="p-radio-explorer__chips-bar">
                     {(canScrollLeft || canScrollRight) && (
                         <button
@@ -1131,22 +1089,12 @@ export default function RadioPage() {
                         className="p-radio-explorer__chips"
                         onScroll={checkScrollBounds}
                     >
-                        <button
-                            type="button"
-                            className={filtersOpen ? 'is-active' : undefined}
-                            onClick={() => setFiltersOpen((current) => !current)}
-                        >
-                            <SlidersHorizontal size={14} />
-                            {t('radio.filter')}
-                        </button>
                         {GENRE_FILTERS.map((genre) => (
                             <button
                                 type="button"
                                 key={genre.label}
-                                aria-pressed={(filters.tag ?? '') === genre.tag}
-                                className={
-                                    (filters.tag ?? '') === genre.tag ? 'is-active' : undefined
-                                }
+                                aria-pressed={activeGenreTag === genre.tag}
+                                className={activeGenreTag === genre.tag ? 'is-active' : undefined}
                                 onClick={() => handleGenreChipClick(genre)}
                             >
                                 <span>{genre.label}</span>

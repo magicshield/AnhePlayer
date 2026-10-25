@@ -1,6 +1,20 @@
 export const RADIO_BROWSER_PLATFORM = 'radio-browser';
 export const RADIO_BROWSER_WEBSITE = 'https://www.radio-browser.info/';
 
+export interface IRadioBitrateFilter {
+    key: string;
+    label: string;
+    min?: number;
+    max?: number;
+}
+
+export const RADIO_BITRATE_FILTERS: IRadioBitrateFilter[] = [
+    { key: 'all', label: '全部', min: undefined, max: undefined },
+    { key: '128', label: '≥ 128 kbps', min: 128, max: undefined },
+    { key: '192', label: '≥ 192 kbps', min: 192, max: undefined },
+    { key: '320', label: '320 kbps', min: 320, max: 320 },
+];
+
 export interface IRadioBrowserMetadata {
     country: string;
     countryCode: string;

@@ -93,6 +93,10 @@
         "favorites_empty": "还没有收藏电台。遇到喜欢的声音时，点一下收藏吧。",
         "add_favorite": "收藏电台",
         "remove_favorite": "取消收藏电台",
+        "history": "历史记录",
+        "history_empty": "暂无电台收听历史。探索电台开始收听吧。",
+        "remove_history": "从历史记录中移除",
+        "clear_history": "清空历史记录",
         "all_countries": "全部国家和地区",
         "all_languages": "全部语言",
         "all_genres": "全部流派",
@@ -415,7 +419,15 @@
             "case_sensitive_label": "歌单内搜索区分大小写",
             "case_sensitive_desc": "开启后搜索时区分大小写",
             "case_insensitive": "不区分",
-            "case_sensitive": "区分"
+            "case_sensitive": "区分",
+            "radio_title": "电台偏好",
+            "radio_subtitle": "配置电台探索时的默认码率、国家/地区与语言筛选",
+            "radio_bitrate_label": "电台码率",
+            "radio_bitrate_desc": "探索电台时过滤电台音频流的最低码率",
+            "radio_country_label": "电台国家和地区",
+            "radio_country_desc": "探索电台时过滤指定国家或地区的电台",
+            "radio_language_label": "电台语言",
+            "radio_language_desc": "探索电台时过滤指定广播语言的电台"
         },
         "download": {
             "subtitle": "下载路径、格式与质量",

@@ -306,7 +306,11 @@
     }
 }
 
-// ─── 搜索与收藏抽屉 ───
+.p-radio-explorer__history-drawer {
+    > header > div svg {
+        color: #38d6a2;
+    }
+}
 
 .p-radio-explorer__search-panel,
 .p-radio-explorer__favorites {
@@ -446,6 +450,21 @@
             svg {
                 color: #f59e0b;
             }
+        }
+
+        .p-radio-explorer__drawer-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+
+            svg {
+                color: inherit;
+            }
+        }
+
+        .p-radio-explorer__clear-btn:hover {
+            color: #ef4444 !important;
+            background: rgba(239, 68, 68, 0.15) !important;
         }
 
         button {
@@ -1040,179 +1059,6 @@
                 font-weight: 600;
             }
         }
-    }
-}
-
-.p-radio-explorer__filter-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    width: min(480px, 100%);
-    padding: 14px 16px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 16px;
-    background: rgba(12, 26, 23, 0.96);
-    backdrop-filter: blur(28px);
-    -webkit-backdrop-filter: blur(28px);
-    box-shadow:
-        0 20px 55px rgba(0, 0, 0, 0.55),
-        0 0 1px rgba(255, 255, 255, 0.2);
-    pointer-events: auto;
-    box-sizing: border-box;
-
-    select {
-        width: 100%;
-        min-width: 0;
-        height: 32px;
-        padding: 0 10px;
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        border-radius: 8px;
-        color: #ffffff;
-        font-size: 12px;
-        background: #152b27;
-        outline: none;
-        cursor: pointer;
-        box-sizing: border-box;
-        transition: border-color 140ms ease;
-
-        &:hover,
-        &:focus {
-            border-color: rgba(56, 214, 162, 0.5);
-        }
-
-        option {
-            background: #0f1f1c;
-            color: #ffffff;
-        }
-    }
-}
-
-.p-radio-explorer__filter-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-
-    .p-radio-explorer__filter-title {
-        color: #ffffff;
-        font-size: 12px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-    }
-
-    .p-radio-explorer__filter-reset {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        height: 22px;
-        padding: 0 8px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: 6px;
-        background: transparent;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 11px;
-        cursor: pointer;
-        transition: all 140ms ease;
-
-        svg {
-            color: #38d6a2;
-        }
-
-        &:hover {
-            color: #ffffff;
-            border-color: rgba(56, 214, 162, 0.45);
-            background: rgba(56, 214, 162, 0.12);
-        }
-    }
-}
-
-.p-radio-explorer__filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-
-    .p-radio-explorer__filter-label {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 11px;
-        font-weight: 600;
-    }
-}
-
-.p-radio-explorer__filter-options {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-
-    button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        height: 32px;
-        padding: 0 6px;
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        border-radius: 8px;
-        color: rgba(255, 255, 255, 0.85);
-        font-size: 11px;
-        font-weight: 500;
-        white-space: nowrap;
-        background: rgba(255, 255, 255, 0.04);
-        cursor: pointer;
-        transition: all 140ms ease;
-        box-sizing: border-box;
-
-        &:hover {
-            border-color: rgba(56, 214, 162, 0.4);
-            color: #ffffff;
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        &.is-active {
-            color: #07100f;
-            background: #38d6a2;
-            border-color: #38d6a2;
-            font-weight: 700;
-            box-shadow: 0 2px 10px rgba(56, 214, 162, 0.35);
-        }
-    }
-}
-
-.p-radio-explorer__filter-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.p-radio-explorer__filter-field {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-
-    span {
-        color: rgba(255, 255, 255, 0.9);
-        font-size: 11px;
-        font-weight: 600;
-    }
-}
-
-.p-radio-explorer__filter-retry {
-    align-self: flex-start;
-    height: 30px;
-    padding: 0 12px;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 11px;
-    font-weight: 500;
-    white-space: nowrap;
-    background: transparent;
-    cursor: pointer;
-    transition: all 140ms ease;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.12);
-        color: #ffffff;
     }
 }
 

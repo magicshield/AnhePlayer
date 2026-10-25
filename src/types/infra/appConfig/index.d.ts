@@ -39,6 +39,13 @@ interface _IAppConfig {
     /** 设备变化时 */
     'playMusic.whenDeviceRemoved': 'pause' | 'play';
 
+    /** 电台：筛选码率 */
+    'radio.bitrate': 'all' | '128' | '192' | '320';
+    /** 电台：筛选国家和地区（ISO 3166-1 代码，空为全部） */
+    'radio.countryCode': string;
+    /** 电台：筛选语言（语言名称，空为全部） */
+    'radio.language': string;
+
     /** [darwin only] 显示状态栏歌词 */
     'lyric.enableStatusBarLyric': boolean;
     /** 显示桌面歌词 */

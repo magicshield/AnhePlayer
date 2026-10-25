@@ -15,6 +15,7 @@ import requestForwarder from '@infra/requestForwarder/renderer';
 import trackPlayer from '@renderer/mainWindow/core/trackPlayer';
 import { playerStateAtom, store as musicStore } from '@renderer/mainWindow/core/trackPlayer/store';
 import { PlayerState } from '@common/constant';
+import { addToRadioHistory } from './radioHistory';
 
 export type RadioPlaybackState = 'idle' | 'buffering' | 'playing' | 'paused' | 'error';
 
@@ -67,6 +68,10 @@ class RadioAudioPlayer {
 
         this.audio.onplaying = () => {
             store.set(radioPlaybackStateAtom, 'playing');
+            const station = store.get(radioCurrentStationAtom);
+            if (station) {
+                addToRadioHistory(station).catch(() => {});
+            }
         };
 
         this.audio.onpause = () => {
