@@ -1253,6 +1253,137 @@
 
 // ─── 响应式自适应 ───
 
+// ─── 量子调频 / 搜寻通道 Loading 浮层 ───
+
+.p-radio-explorer__tuning-modal {
+    position: absolute;
+    top: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 25;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 28px;
+    border-radius: 16px;
+    background: rgba(8, 20, 18, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(56, 214, 162, 0.4);
+    box-shadow:
+        0 18px 42px rgba(0, 0, 0, 0.65),
+        0 0 32px rgba(56, 214, 162, 0.22);
+    pointer-events: none;
+    animation: tuningModalFadeIn 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.p-radio-explorer__tuning-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: rgba(56, 214, 162, 0.15);
+    border: 1px solid rgba(56, 214, 162, 0.3);
+    color: #38d6a2;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.p-radio-explorer__tuning-icon {
+    animation: radioPulse 1.2s infinite ease-in-out;
+}
+
+.p-radio-explorer__tuning-waves {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 18px;
+    margin: 4px 0;
+
+    span {
+        width: 3.5px;
+        border-radius: 2px;
+        background: #38d6a2;
+        box-shadow: 0 0 8px rgba(56, 214, 162, 0.7);
+        animation: waveBars 0.75s infinite ease-in-out alternate;
+
+        &:nth-child(1) {
+            animation-delay: 0.05s;
+            height: 35%;
+        }
+        &:nth-child(2) {
+            animation-delay: 0.3s;
+            height: 85%;
+        }
+        &:nth-child(3) {
+            animation-delay: 0.15s;
+            height: 100%;
+        }
+        &:nth-child(4) {
+            animation-delay: 0.45s;
+            height: 70%;
+        }
+        &:nth-child(5) {
+            animation-delay: 0.2s;
+            height: 45%;
+        }
+    }
+}
+
+.p-radio-explorer__tuning-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    max-width: 340px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.p-radio-explorer__tuning-sub {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    letter-spacing: 0.4px;
+    font-variant-numeric: tabular-nums;
+}
+
+@keyframes tuningModalFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -10px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+@keyframes waveBars {
+    0% {
+        height: 25%;
+    }
+    100% {
+        height: 100%;
+    }
+}
+
+@keyframes radioPulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.85;
+    }
+    50% {
+        transform: scale(1.18);
+        opacity: 1;
+    }
+}
+
 @media (max-width: 860px) {
     .p-radio-explorer__topbar {
         padding: 0 14px;

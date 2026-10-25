@@ -6,11 +6,13 @@ import {
     type HTMLAttributes,
 } from 'react';
 import { cn } from '@common/cn';
-import type { IRadioSceneNode, RadioSceneLayout } from '../../data/sceneLayout';
+import type { IRadioSceneNode, RadioGenreFamily, RadioSceneLayout } from '../../data/sceneLayout';
 import { RadioSceneEngine, type IRadioSceneEngineCallbacks } from './RadioSceneEngine';
 
 export interface IRadioSceneHandle {
-    focusNode(key: string): void;
+    focusNode(key: string, smooth?: boolean): void;
+    focusGenreFamily(family: RadioGenreFamily, smooth?: boolean): void;
+    highlightGenreFamily(family: RadioGenreFamily | null): void;
     getCenterKey(): string | null;
     updateTheme(): void;
 }
@@ -20,6 +22,7 @@ interface RadioSceneProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onSelect
     layout: RadioSceneLayout;
     selectedKey: string | null;
     playingKey: string | null;
+    isLivePlaying?: boolean;
     onHover: (key: string | null) => void;
     onSelect: (key: string) => void;
     onInteractionStart: () => void;
@@ -34,6 +37,7 @@ const RadioScene = forwardRef<IRadioSceneHandle, RadioSceneProps>(function Radio
         layout,
         selectedKey,
         playingKey,
+        isLivePlaying = false,
         onHover,
         onSelect,
         onInteractionStart,
@@ -104,10 +108,17 @@ const RadioScene = forwardRef<IRadioSceneHandle, RadioSceneProps>(function Radio
         engineRef.current?.setPlaying(playingKey);
     }, [playingKey]);
 
+    useLayoutEffect(() => {
+        engineRef.current?.setLivePlaying(isLivePlaying);
+    }, [isLivePlaying]);
+
     useImperativeHandle(
         ref,
         () => ({
-            focusNode: (key) => engineRef.current?.focusNode(key),
+            focusNode: (key, smooth) => engineRef.current?.focusNode(key, smooth),
+            focusGenreFamily: (family, smooth) =>
+                engineRef.current?.focusGenreFamily(family, smooth),
+            highlightGenreFamily: (family) => engineRef.current?.highlightGenreFamily(family),
             getCenterKey: () => engineRef.current?.getCenterKey() ?? null,
             updateTheme: () => engineRef.current?.updateTheme(),
         }),

@@ -121,6 +121,12 @@ export default function RadioPage() {
     const [tuningState, setTuningState] = useState<TuningState>('idle');
     const [webglLost, setWebglLost] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(() => !!document.fullscreenElement);
+    const [tuningOverlay, setTuningOverlay] = useState<{
+        genre: string;
+        stationName: string;
+        freq: string;
+    } | null>(null);
+    const tuningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { stations, facets, status, facetsStatus, retry, retryFacets } =
         useRadioExplorer(filters);
@@ -243,6 +249,7 @@ export default function RadioPage() {
     useEffect(() => {
         return () => {
             radioAudioPlayer.stop();
+            if (tuningTimerRef.current) clearTimeout(tuningTimerRef.current);
         };
     }, []);
 
@@ -435,6 +442,73 @@ export default function RadioPage() {
         [focusStation],
     );
 
+    const handleGenreChipClick = useCallback(
+        async (genreItem: { label: RadioGenreFamily | '全部'; tag: string }) => {
+            setFilters((current) => ({
+                ...current,
+                tag: genreItem.tag || undefined,
+            }));
+
+            if (genreItem.label === '全部') {
+                sceneRef.current?.highlightGenreFamily(null);
+                return;
+            }
+
+            const family = genreItem.label as RadioGenreFamily;
+
+            // 1. 自动切换至流派星云视图以呈现星云联动
+            if (layout !== 'genres') {
+                setLayout('genres');
+            }
+
+            // 2. 镜头平滑飞行聚焦并高亮该流派簇
+            sceneRef.current?.focusGenreFamily(family, true);
+            sceneRef.current?.highlightGenreFamily(family);
+
+            // 3. 从该流派星云粒子或候选池中随机挑选一个电台
+            const matchedNodes = nodes.filter((node) => node.genreFamily === family);
+            let candidateStations = matchedNodes.map((n) => n.station);
+
+            if (candidateStations.length === 0 && genreItem.tag) {
+                const tagLower = genreItem.tag.toLowerCase();
+                candidateStations = allStations.filter((station) =>
+                    station.radioBrowser.tags.some((tag) => tag.toLowerCase().includes(tagLower)),
+                );
+            }
+            if (candidateStations.length === 0) {
+                candidateStations = allStations;
+            }
+            if (candidateStations.length === 0) return;
+
+            const randomIndex = Math.floor(Math.random() * candidateStations.length);
+            const chosenStation = candidateStations[randomIndex];
+            const chosenKey = compositeKey(chosenStation.platform, String(chosenStation.id));
+
+            // 4. 定位选中该电台
+            setSelectedKey(chosenKey);
+            sceneRef.current?.focusNode(chosenKey, true);
+
+            // 5. 启动极具未来感的量子调频 Loading 动效，随后自动播放
+            setTuningOverlay({
+                genre: family,
+                stationName: chosenStation.title,
+                freq: (87.5 + Math.random() * 20.5).toFixed(1),
+            });
+
+            if (tuningTimerRef.current) clearTimeout(tuningTimerRef.current);
+            tuningTimerRef.current = setTimeout(async () => {
+                try {
+                    await tuneStation(chosenStation);
+                } catch (error) {
+                    console.error('Radio play error:', error);
+                } finally {
+                    setTuningOverlay(null);
+                }
+            }, 600);
+        },
+        [allStations, layout, nodes, tuneStation],
+    );
+
     const setBitrateFilter = useCallback((key: string) => {
         const target = BITRATE_FILTERS.find((item) => item.key === key) ?? BITRATE_FILTERS[0];
         setBitrateKey(target.key);
@@ -526,6 +600,7 @@ export default function RadioPage() {
                 layout={layout}
                 selectedKey={selectedKey}
                 playingKey={playingKey}
+                isLivePlaying={isPlaying}
                 onHover={setHoveredKey}
                 onSelect={(key) => setSelectedKey(key)}
                 onInteractionStart={handleInteractionStart}
@@ -915,6 +990,28 @@ export default function RadioPage() {
                     </button>
                 </div>
             )}
+            {tuningOverlay && (
+                <div className="p-radio-explorer__tuning-modal" role="status" aria-live="polite">
+                    <div className="p-radio-explorer__tuning-badge">
+                        <Radio size={14} className="p-radio-explorer__tuning-icon" />
+                        <span>量子调频 · {tuningOverlay.genre}</span>
+                    </div>
+                    <div className="p-radio-explorer__tuning-waves" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                    </div>
+                    <div className="p-radio-explorer__tuning-title">
+                        {tuningOverlay.stationName}
+                    </div>
+                    <div className="p-radio-explorer__tuning-sub">
+                        FM {tuningOverlay.freq} MHz · 正在锁定宇宙无线电信号...
+                    </div>
+                </div>
+            )}
+
             {webglLost && (
                 <div className="p-radio-explorer__status is-error">
                     <AlertTriangle size={26} />
@@ -1050,12 +1147,7 @@ export default function RadioPage() {
                                 className={
                                     (filters.tag ?? '') === genre.tag ? 'is-active' : undefined
                                 }
-                                onClick={() =>
-                                    setFilters((current) => ({
-                                        ...current,
-                                        tag: genre.tag || undefined,
-                                    }))
-                                }
+                                onClick={() => handleGenreChipClick(genre)}
                             >
                                 <span>{genre.label}</span>
                                 <small>

@@ -4,6 +4,7 @@ import {
     getRadioGenreAnchor,
     RADIO_GENRE_FAMILIES,
     type IRadioSceneNode,
+    type RadioGenreFamily,
     type RadioSceneLayout,
 } from '../../data/sceneLayout';
 
@@ -32,6 +33,24 @@ function createDotTexture(): THREE.CanvasTexture {
     gradient.addColorStop(1, 'rgba(255,255,255,0)');
     context.fillStyle = gradient;
     context.fillRect(0, 0, 64, 64);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+}
+
+function createRingTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d')!;
+    context.clearRect(0, 0, 128, 128);
+    context.beginPath();
+    context.arc(64, 64, 52, 0, Math.PI * 2);
+    context.lineWidth = 4;
+    context.strokeStyle = 'rgba(56, 214, 162, 0.9)';
+    context.shadowColor = 'rgba(56, 214, 162, 0.85)';
+    context.shadowBlur = 10;
+    context.stroke();
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     return texture;
@@ -68,31 +87,6 @@ function createGraticule(radius: number): THREE.LineSegments {
     return new THREE.LineSegments(
         geometry,
         new THREE.LineBasicMaterial({ transparent: true, opacity: 0.12 }),
-    );
-}
-
-function createStars(): THREE.Points {
-    const positions: number[] = [];
-    for (let index = 0; index < 600; index++) {
-        const radius = 13 + Math.random() * 9;
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        positions.push(
-            radius * Math.sin(phi) * Math.cos(theta),
-            radius * Math.cos(phi),
-            radius * Math.sin(phi) * Math.sin(theta),
-        );
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    return new THREE.Points(
-        geometry,
-        new THREE.PointsMaterial({
-            color: 0xffffff,
-            size: 0.025,
-            transparent: true,
-            opacity: 0.28,
-        }),
     );
 }
 
@@ -135,6 +129,7 @@ export class RadioSceneEngine {
     private nodeIndexByKey = new Map<string, number>();
     private layout: RadioSceneLayout = 'globe';
     private pointTexture = createDotTexture();
+    private ringTexture = createRingTexture();
     private pointGeometry = new THREE.BufferGeometry();
     private pointMaterial: THREE.PointsMaterial;
     private points: THREE.Points;
@@ -143,8 +138,10 @@ export class RadioSceneEngine {
     private genreLabels = new THREE.Group();
     private selectedHalo: THREE.Sprite;
     private playingHalo: THREE.Sprite;
+    private signalWaves: THREE.Sprite[] = [];
     private selectedKey: string | null = null;
     private playingKey: string | null = null;
+    private isLivePlaying = false;
     private animationFrame: number | null = null;
     private transitionStart = 0;
     private transitionDuration = 0;
@@ -157,6 +154,21 @@ export class RadioSceneEngine {
     private wheelEndTimer: ReturnType<typeof setTimeout> | null = null;
     private disposed = false;
     private visible = true;
+
+    // 宇宙星空着色器（参考 roamdial.com 的多层闪烁星空、流星与深空光晕）
+    private skyQuad: THREE.Mesh;
+    private skyMaterial: THREE.ShaderMaterial;
+    private targetTilt = new THREE.Vector2(0, 0);
+    private currentTilt = new THREE.Vector2(0, 0);
+
+    // 平滑镜头巡航
+    private cameraFlyStart = 0;
+    private cameraFlyDuration = 0;
+    private cameraFlyFromPos = new THREE.Vector3();
+    private cameraFlyToPos = new THREE.Vector3();
+    private cameraFlyFromTarget = new THREE.Vector3();
+    private cameraFlyToTarget = new THREE.Vector3();
+    private isCameraFlying = false;
 
     constructor(
         private readonly container: HTMLElement,
@@ -184,8 +196,96 @@ export class RadioSceneEngine {
         this.controls.dampingFactor = 0.075;
         this.controls.rotateSpeed = 0.48;
         this.controls.zoomSpeed = 0.7;
-        this.controls.minDistance = 6.2;
+        this.controls.minDistance = 5.8;
         this.controls.maxDistance = 17;
+
+        // 构建全屏深空着色器背景
+        const skyGeometry = new THREE.PlaneGeometry(2, 2);
+        this.skyMaterial = new THREE.ShaderMaterial({
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = vec4(position.xy, 0.9999, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uAspect;
+                uniform float uTime;
+                uniform float uLive;
+                uniform vec2 uTilt;
+
+                varying vec2 vUv;
+
+                float hh(vec2 p) {
+                    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+                }
+
+                float stars(vec2 q, float dens, float rad, float time, float live) {
+                    vec2 c = floor(q);
+                    float h1 = hh(c);
+                    if (h1 > dens) return 0.0;
+                    vec2 o = vec2(hh(c + 7.1), hh(c + 13.7)) - 0.5;
+                    float d = length(fract(q) - 0.5 - o * 0.6);
+                    float h2 = hh(c + 3.3);
+                    float tw = mix(0.35, 0.75, live);
+                    float speed = (0.28 + h2 * 1.15) * mix(1.0, 1.55, live);
+                    float twinkle = max(0.0, 1.0 - tw + tw * sin(time * speed + h2 * 40.0));
+                    return smoothstep(rad, 0.0, d) * (0.35 + 0.65 * hh(c + 5.9)) * twinkle;
+                }
+
+                void main() {
+                    vec2 p = vUv - 0.5;
+                    p.x *= uAspect;
+
+                    // 1. 深空氛围晕光（参考 roamdial.com 墨绿暗青基调与径向辐射）
+                    float g = exp(-dot(p, p) * 2.8);
+                    vec3 c = vec3(0.0035, 0.0085, 0.0078) + mix(vec3(0.0025, 0.0068, 0.0055), vec3(0.0020, 0.0058, 0.0075), 0.5) * g;
+                    c += vec3(0.008, 0.024, 0.018) * exp(-length(p - vec2(0.2, -0.15)) * 3.0);
+                    c += vec3(0.010, 0.016, 0.024) * exp(-length(p - vec2(-0.25, 0.22)) * 3.2);
+
+                    vec2 s = vUv * vec2(uAspect, 1.0);
+                    float dr = mix(1.0, 2.2, uLive);
+
+                    // 2. 多层级闪烁星空（远景微尘、中景闪烁恒星、近景明亮星点）
+                    float st1 = stars((s + uTilt * 0.012) * 80.0 + uTime * vec2(0.035, 0.010) * dr, 0.12, 0.13, uTime, uLive);
+                    float st2 = stars((s + uTilt * 0.028) * 36.0 + uTime * vec2(0.045, 0.014) * dr, 0.065, 0.088, uTime, uLive) * 2.5;
+                    float st3 = stars((s + uTilt * 0.045) * 16.0 + uTime * vec2(0.055, 0.016) * dr, 0.028, 0.055, uTime, uLive) * 4.2;
+
+                    float st = st1 + st2 + st3;
+                    vec3 starColor = mix(vec3(0.72, 0.88, 0.82), vec3(0.96, 0.98, 1.0), hh(floor((s + uTilt * 0.02) * 36.0)));
+                    c += starColor * st * 0.09 * mix(1.0, 1.35, uLive);
+
+                    // 3. 动态流星划过天际（roamdial.com 招牌灵动画感）
+                    float mt = uTime / 12.0;
+                    float mi = floor(mt);
+                    float mf = fract(mt) * 12.0;
+                    if (mf < 1.25 && hh(vec2(mi, 0.72)) < 0.88) {
+                        vec2 h0 = vec2(uAspect * (0.28 + 0.62 * hh(vec2(mi, 1.3))), 0.65 + 0.32 * hh(vec2(mi, 7.9))) + uTilt * 0.03;
+                        vec2 dir = normalize(vec2(-0.76 - 0.45 * hh(vec2(mi, 3.1)), -0.42));
+                        float k = mf / 1.25;
+                        vec2 q = s - (h0 + dir * k * 0.62);
+                        float along = dot(q, -dir);
+                        float across = abs(q.x * dir.y - q.y * dir.x);
+                        float streak = step(0.0, along) * (1.0 - smoothstep(0.0, 0.20, along)) * (1.0 - smoothstep(0.0, 0.0024, across)) * sin(3.14159 * k);
+                        c += vec3(0.40, 0.55, 0.50) * streak * 1.6;
+                    }
+
+                    gl_FragColor = vec4(c, 1.0);
+                }
+            `,
+            uniforms: {
+                uAspect: { value: 1.0 },
+                uTime: { value: 0.0 },
+                uLive: { value: 0.0 },
+                uTilt: { value: new THREE.Vector2(0, 0) },
+            },
+            depthTest: false,
+            depthWrite: false,
+        });
+        this.skyQuad = new THREE.Mesh(skyGeometry, this.skyMaterial);
+        this.skyQuad.frustumCulled = false;
+        this.skyQuad.renderOrder = -1000;
 
         this.pointMaterial = new THREE.PointsMaterial({
             size: 0.11,
@@ -210,8 +310,23 @@ export class RadioSceneEngine {
         );
         this.selectedHalo = this.createHalo(0.25, 0.95);
         this.playingHalo = this.createHalo(0.34, 0.7);
+
+        // 3D 广播信号波纹（从激活电台向外辐射扩散的同心光环）
+        for (let i = 0; i < 3; i++) {
+            const mat = new THREE.SpriteMaterial({
+                map: this.ringTexture,
+                transparent: true,
+                opacity: 0,
+                depthTest: false,
+            });
+            const sprite = new THREE.Sprite(mat);
+            sprite.visible = false;
+            this.signalWaves.push(sprite);
+            this.scene.add(sprite);
+        }
+
         this.scene.add(
-            createStars(),
+            this.skyQuad,
             this.globe,
             this.graticule,
             this.points,
@@ -226,6 +341,7 @@ export class RadioSceneEngine {
         this.bindEvents();
         this.updateTheme();
         this.resize();
+        this.startLoop();
     }
 
     setNodes(nodes: IRadioSceneNode[]): void {
@@ -256,7 +372,6 @@ export class RadioSceneEngine {
         this.pointGeometry.computeBoundingSphere();
         this.rebuildGenreLabels();
         this.updateHalos();
-        this.requestRender();
     }
 
     setLayout(layout: RadioSceneLayout, animate = true): void {
@@ -284,40 +399,100 @@ export class RadioSceneEngine {
             this.transitionFrom = new Float32Array(attribute.array as ArrayLike<number>);
             this.transitionTo = target;
             this.transitionStart = performance.now();
-            this.transitionDuration = 460;
+            this.transitionDuration = 520;
         }
         this.controls.target.set(0, 0, 0);
-        this.requestRender();
     }
 
     setSelected(key: string | null): void {
         this.selectedKey = key;
         this.updateHalos();
-        this.requestRender();
     }
 
     setPlaying(key: string | null): void {
         this.playingKey = key;
         this.updateHalos();
-        this.requestRender();
     }
 
-    focusNode(key: string): void {
+    setLivePlaying(isLive: boolean): void {
+        this.isLivePlaying = isLive;
+    }
+
+    focusNode(key: string, smooth = true): void {
         const index = this.nodeIndexByKey.get(key);
         if (index == null) return;
         const node = this.nodes[index];
         const position = this.layout === 'globe' ? node.globePosition : node.genrePosition;
+        let targetCameraPos: THREE.Vector3;
+        let targetLookAt: THREE.Vector3;
+
         if (this.layout === 'globe') {
             const direction = position.clone().normalize();
-            this.camera.position.copy(direction.multiplyScalar(10.5));
-            this.controls.target.set(0, 0, 0);
+            targetCameraPos = direction.clone().multiplyScalar(10.2);
+            targetLookAt = new THREE.Vector3(0, 0, 0);
         } else {
-            this.controls.target.copy(position);
-            this.camera.position.copy(position).add(new THREE.Vector3(0, 0, 8.5));
+            targetLookAt = position.clone();
+            targetCameraPos = position.clone().add(new THREE.Vector3(0, 0.25, 5.6));
         }
-        this.camera.lookAt(this.controls.target);
-        this.controls.update();
-        this.requestRender();
+
+        if (!smooth) {
+            this.controls.target.copy(targetLookAt);
+            this.camera.position.copy(targetCameraPos);
+            this.camera.lookAt(targetLookAt);
+            this.controls.update();
+            return;
+        }
+
+        this.startCameraFlight(targetCameraPos, targetLookAt, 680);
+    }
+
+    /** 平滑飞行聚焦流派星云簇 */
+    focusGenreFamily(family: RadioGenreFamily, smooth = true): void {
+        const anchor = getRadioGenreAnchor(family);
+        const targetLookAt = anchor.clone();
+        const targetCameraPos = anchor.clone().add(new THREE.Vector3(0, 0.35, 6.5));
+
+        if (!smooth) {
+            this.controls.target.copy(targetLookAt);
+            this.camera.position.copy(targetCameraPos);
+            this.camera.lookAt(targetLookAt);
+            this.controls.update();
+            return;
+        }
+
+        this.startCameraFlight(targetCameraPos, targetLookAt, 750);
+    }
+
+    /** 高亮突出选中流派粒子簇，其他流派粒子优雅暗化 */
+    highlightGenreFamily(family: RadioGenreFamily | null): void {
+        const colorAttr = this.pointGeometry.getAttribute('color') as
+            | THREE.BufferAttribute
+            | undefined;
+        if (!colorAttr) return;
+
+        const brand = new THREE.Color(cssColor('--color-text-brand', '#38d6a2'));
+        const warm = new THREE.Color('#f0a55b');
+        const dimmed = new THREE.Color('#19322b');
+
+        this.nodes.forEach((node, index) => {
+            const isMatched = family == null || node.genreFamily === family;
+            let c: THREE.Color;
+            if (isMatched) {
+                c = brand
+                    .clone()
+                    .lerp(
+                        warm,
+                        this.layout === 'genres' ? node.popularity * 0.72 : node.popularity * 0.3,
+                    );
+                if (family != null) {
+                    c.multiplyScalar(1.22);
+                }
+            } else {
+                c = dimmed;
+            }
+            c.toArray(colorAttr.array as Float32Array, index * 3);
+        });
+        colorAttr.needsUpdate = true;
     }
 
     getCenterKey(): string | null {
@@ -335,7 +510,6 @@ export class RadioSceneEngine {
         (this.graticule.material as THREE.LineBasicMaterial).color.copy(border);
         (this.selectedHalo.material as THREE.SpriteMaterial).color.copy(brand);
         (this.playingHalo.material as THREE.SpriteMaterial).color.set('#f4a261');
-        this.requestRender();
     }
 
     dispose(): void {
@@ -364,9 +538,35 @@ export class RadioSceneEngine {
                 object.material.dispose();
             }
         });
+        this.skyMaterial.dispose();
+        this.skyQuad.geometry.dispose();
         this.pointTexture.dispose();
+        this.ringTexture.dispose();
         this.renderer.dispose();
         this.renderer.domElement.remove();
+    }
+
+    private startCameraFlight(
+        targetPos: THREE.Vector3,
+        targetLookAt: THREE.Vector3,
+        duration = 700,
+    ): void {
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion) {
+            this.camera.position.copy(targetPos);
+            this.controls.target.copy(targetLookAt);
+            this.camera.lookAt(targetLookAt);
+            this.controls.update();
+            return;
+        }
+
+        this.cameraFlyFromPos.copy(this.camera.position);
+        this.cameraFlyToPos.copy(targetPos);
+        this.cameraFlyFromTarget.copy(this.controls.target);
+        this.cameraFlyToTarget.copy(targetLookAt);
+        this.cameraFlyDuration = duration;
+        this.cameraFlyStart = performance.now();
+        this.isCameraFlying = true;
     }
 
     private rebuildGenreLabels(): void {
@@ -432,7 +632,6 @@ export class RadioSceneEngine {
             Math.min(window.devicePixelRatio || 1, width < 700 ? 1.4 : 1.75),
         );
         this.renderer.setSize(width, height, false);
-        this.requestRender();
     }
 
     private pick(clientX: number, clientY: number): string | null {
@@ -484,6 +683,14 @@ export class RadioSceneEngine {
     };
 
     private handlePointerMove = (event: PointerEvent) => {
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            this.targetTilt.set(
+                ((event.clientX - rect.left) / rect.width - 0.5) * 2,
+                ((event.clientY - rect.top) / rect.height - 0.5) * 2,
+            );
+        }
+
         if (this.pointerDown) {
             const distance = Math.hypot(
                 event.clientX - this.pointerDown.x,
@@ -512,6 +719,7 @@ export class RadioSceneEngine {
         this.pointerDown = null;
         this.pointerMoved = false;
         this.callbacks.onHover(null);
+        this.targetTilt.set(0, 0);
     };
 
     private handleWheel = () => {
@@ -538,7 +746,6 @@ export class RadioSceneEngine {
 
     private handleControlChange = () => {
         this.updateHalos();
-        this.requestRender();
     };
 
     private handleControlEnd = () => {
@@ -551,12 +758,20 @@ export class RadioSceneEngine {
 
     private handleVisibilityChange = () => {
         this.visible = !document.hidden;
-        if (this.visible) this.requestRender();
+        if (this.visible) this.startLoop();
+        else if (this.animationFrame != null) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
     };
 
     private handleContextLost = (event: Event) => {
         event.preventDefault();
         this.visible = false;
+        if (this.animationFrame != null) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
         this.callbacks.onContextLost();
     };
 
@@ -564,17 +779,49 @@ export class RadioSceneEngine {
         this.visible = true;
         this.callbacks.onContextRestored();
         this.updateTheme();
-        this.requestRender();
+        this.startLoop();
     };
 
-    private requestRender(): void {
+    private startLoop(): void {
         if (this.disposed || !this.visible || this.animationFrame != null) return;
-        this.animationFrame = requestAnimationFrame(this.renderFrame);
+        this.animationFrame = requestAnimationFrame(this.renderLoop);
     }
 
-    private renderFrame = (now: number) => {
+    private renderLoop = (now: number) => {
         this.animationFrame = null;
-        let keepRendering = this.controls.update();
+        if (this.disposed || !this.visible) return;
+        this.renderFrame(now);
+        this.animationFrame = requestAnimationFrame(this.renderLoop);
+    };
+
+    private renderFrame(now: number): void {
+        this.controls.update();
+
+        // 1. 更新全景星空着色器（视差平滑跟随 + 闪烁时间 + 电台活力反应）
+        this.currentTilt.lerp(this.targetTilt, 0.05);
+        this.skyMaterial.uniforms.uAspect.value = this.camera.aspect;
+        this.skyMaterial.uniforms.uTime.value = now * 0.001;
+        this.skyMaterial.uniforms.uLive.value = this.isLivePlaying ? 1.0 : 0.0;
+        this.skyMaterial.uniforms.uTilt.value.copy(this.currentTilt);
+
+        // 2. 镜头平滑巡航飞行
+        if (this.isCameraFlying) {
+            const elapsed = now - this.cameraFlyStart;
+            const progress = Math.min(1, elapsed / this.cameraFlyDuration);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            this.camera.position.lerpVectors(this.cameraFlyFromPos, this.cameraFlyToPos, eased);
+            this.controls.target.lerpVectors(
+                this.cameraFlyFromTarget,
+                this.cameraFlyToTarget,
+                eased,
+            );
+            this.controls.update();
+            if (progress >= 1) {
+                this.isCameraFlying = false;
+            }
+        }
+
+        // 3. 布局形态过渡（地球与流派星云）
         if (this.transitionTo && this.transitionFrom) {
             const progress = Math.min(1, (now - this.transitionStart) / this.transitionDuration);
             const eased = 1 - Math.pow(1 - progress, 3);
@@ -588,13 +835,34 @@ export class RadioSceneEngine {
             }
             attribute.needsUpdate = true;
             this.updateHalos();
-            if (progress < 1) keepRendering = true;
-            else {
+            if (progress >= 1) {
                 this.transitionFrom = null;
                 this.transitionTo = null;
             }
         }
+
+        // 4. 3D 广播信号波纹动态扩散
+        const activeKey = this.playingKey ?? this.selectedKey;
+        const activeIndex = activeKey ? this.nodeIndexByKey.get(activeKey) : undefined;
+        if (activeIndex != null) {
+            const node = this.nodes[activeIndex];
+            const pos = this.layout === 'globe' ? node.globePosition : node.genrePosition;
+            const sec = now * 0.001;
+            this.signalWaves.forEach((sprite, i) => {
+                sprite.position.copy(pos);
+                sprite.visible = true;
+                const phase = (sec * 0.55 + i * 0.333) % 1.0;
+                const scale = 0.2 + phase * 2.2;
+                sprite.scale.set(scale, scale, 1);
+                (sprite.material as THREE.SpriteMaterial).opacity =
+                    Math.sin(phase * Math.PI) * 0.85;
+            });
+        } else {
+            this.signalWaves.forEach((sprite) => {
+                sprite.visible = false;
+            });
+        }
+
         this.renderer.render(this.scene, this.camera);
-        if (keepRendering) this.requestRender();
-    };
+    }
 }
