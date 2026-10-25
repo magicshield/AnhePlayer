@@ -1,11 +1,12 @@
 {
-  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2.0/crates/tauri-config-schema/schema.json",
-  "identifier": "default",
-  "description": "Default permissions for AnhePlayer",
-  "windows": ["main", "lyric", "minimode"],
-  "permissions": [
-    "core:default",
-    "opener:default",
-    "http:default"
-  ]
+    "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/v2.0/crates/tauri-config-schema/schema.json",
+    "identifier": "default",
+    "description": "Default permissions for AnhePlayer",
+    "windows": ["main", "lyric", "minimode"],
+    "permissions": [
+        "core:default",
+        "core:window:allow-start-dragging",
+        "opener:default",
+        "http:default"
+    ]
 }

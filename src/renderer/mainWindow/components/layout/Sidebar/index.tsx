@@ -72,7 +72,12 @@ export default function Sidebar() {
     return (
         <aside className="l-sidebar">
             {/* ── Logo ── */}
-            <div className="l-sidebar__logo" aria-label={BRAND_NAME} title={BRAND_NAME}>
+            <div
+                className="l-sidebar__logo"
+                aria-label={BRAND_NAME}
+                title={BRAND_NAME}
+                data-tauri-drag-region
+            >
                 <span className="l-sidebar__logo-text" data-tauri-drag-region>
                     {BRAND_NAME}
                 </span>
